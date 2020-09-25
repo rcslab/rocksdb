@@ -19,6 +19,59 @@
 #include "util/random.h"
 #include "util/rate_limiter.h"
 
+// <SLS>: Global SLS WAL
+extern "C" {
+#include <sls.h>
+#include <sls_wal.h>
+}
+
+namespace {
+  class SlsWal {
+  public:
+    SlsWal() {
+      if (sls_wal_open(&wal_, SLS_DEFAULT_PARTITION, 4096 * 4096) != 0) {
+        perror("sls_wal_open");
+        throw 42;
+      }
+    }
+
+    ~SlsWal() {
+      if (sls_wal_close(&wal_) != 0) {
+        perror("sls_wal_close");
+      }
+    }
+
+    SlsWal(SlsWal&&) = default;
+    SlsWal& operator=(SlsWal&&) = default;
+
+    size_t Append(rocksdb::AlignedBuffer& buf, const char *src, size_t append_size) {
+      size_t buffer_remaining = buf.Capacity() - buf.CurrentSize();
+      size_t to_copy = std::min(append_size, buffer_remaining);
+
+      if (to_copy > 0) {
+        sls_wal_memcpy(&wal_, buf.BufferStart() + buf.CurrentSize(), src, to_copy);
+        buf.Size(buf.CurrentSize() + to_copy);
+      }
+      return to_copy;
+    }
+
+    void PadWith(rocksdb::AlignedBuffer& buf, size_t pad_size, int padding) {
+      char bytes[pad_size];
+      memset(bytes, padding, pad_size);
+      Append(buf, bytes, pad_size);
+    }
+
+    void Sync() {
+      sls_wal_sync(&wal_);
+    }
+
+    sls_wal wal_;
+  };
+
+  SlsWal global_wal;
+}
+// </SLS>
+
 namespace rocksdb {
 Status WritableFileWriter::Append(const Slice& data) {
   const char* src = data.data();
@@ -67,7 +120,14 @@ Status WritableFileWriter::Append(const Slice& data) {
   // chunks
   if (use_direct_io() || (buf_.Capacity() >= left)) {
     while (left > 0) {
-      size_t appended = buf_.Append(src, left);
+      // <SLS>
+      size_t appended;
+      if (sls_) {
+        appended = global_wal.Append(buf_, src, left);
+      } else {
+        appended = buf_.Append(src, left);
+      }
+      // </SLS>
       left -= appended;
       src += appended;
 
@@ -101,7 +161,13 @@ Status WritableFileWriter::Pad(const size_t pad_bytes) {
   // Append() does.
   while (left) {
     size_t append_bytes = std::min(cap, left);
-    buf_.PadWith(append_bytes, 0);
+    // <SLS>
+    if (sls_) {
+      global_wal.PadWith(buf_, append_bytes, 0);
+    } else {
+      buf_.PadWith(append_bytes, 0);
+    }
+    // </SLS>
     left -= append_bytes;
     if (left > 0) {
       Status s = Flush();
@@ -158,6 +224,13 @@ Status WritableFileWriter::Close() {
 // write out the cached data to the OS cache or storage if direct I/O
 // enabled
 Status WritableFileWriter::Flush() {
+  // <SLS>
+  if (sls_) {
+    global_wal.Sync();
+    buf_.Size(0);
+    return Status::OK();
+  }
+  // </SLS>
   Status s;
   TEST_KILL_RANDOM("WritableFileWriter::Flush:0",
                    rocksdb_kill_odds * REDUCE_ODDS2);
@@ -243,6 +316,11 @@ Status WritableFileWriter::SyncWithoutFlush(bool use_fsync) {
 }
 
 Status WritableFileWriter::SyncInternal(bool use_fsync) {
+  // <SLS>
+  if (sls_) {
+    return Status::OK();
+  }
+  // </SLS>
   Status s;
   IOSTATS_TIMER_GUARD(fsync_nanos);
   TEST_SYNC_POINT("WritableFileWriter::SyncInternal:0");

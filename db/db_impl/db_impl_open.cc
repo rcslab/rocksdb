@@ -1309,6 +1309,7 @@ Status DBImpl::CreateWAL(uint64_t log_file_num, uint64_t recycle_log_number,
     std::unique_ptr<WritableFileWriter> file_writer(
         new WritableFileWriter(std::move(lfile), log_fname, opt_env_options,
                                env_, nullptr /* stats */, listeners));
+    file_writer->sls_ = true;
     *new_log = new log::Writer(std::move(file_writer), log_file_num,
                                immutable_db_options_.recycle_log_file_num > 0,
                                immutable_db_options_.manual_wal_flush);

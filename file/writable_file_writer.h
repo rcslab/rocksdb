@@ -70,6 +70,8 @@ class WritableFileWriter {
   std::vector<std::shared_ptr<EventListener>> listeners_;
 
  public:
+  bool sls_;
+
   WritableFileWriter(
       std::unique_ptr<WritableFile>&& file, const std::string& _file_name,
       const EnvOptions& options, Env* env = nullptr,
@@ -89,7 +91,8 @@ class WritableFileWriter {
         bytes_per_sync_(options.bytes_per_sync),
         rate_limiter_(options.rate_limiter),
         stats_(stats),
-        listeners_() {
+        listeners_(),
+        sls_(false) {
     TEST_SYNC_POINT_CALLBACK("WritableFileWriter::WritableFileWriter:0",
                              reinterpret_cast<void*>(max_buffer_size_));
     buf_.Alignment(writable_file_->GetRequiredBufferAlignment());
