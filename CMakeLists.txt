@@ -686,6 +686,11 @@ set(SOURCES
         utilities/write_batch_with_index/write_batch_with_index_internal.cc
         $<TARGET_OBJECTS:build_version>)
 
+# <SLS>
+include_directories(/home/tavianator/code/sls/libsls)
+list(APPEND THIRDPARTY_LIBS sls)
+# </SLS>
+
 if(HAVE_SSE42 AND NOT MSVC)
   set_source_files_properties(
     util/crc32c.cc

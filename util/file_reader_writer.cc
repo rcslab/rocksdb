@@ -19,6 +19,52 @@
 #include "util/rate_limiter.h"
 #include "util/sync_point.h"
 
+// <SLS>: Global SLS WAL
+#include <sls_wal.h>
+
+namespace {
+  class SlsWal {
+  public:
+    SlsWal() {
+      if (sls_wal_open(&wal_, 1000, "/mnt/sls/rocksdb_wal", 4096 * 4096) != 0) {
+        perror("sls_wal_open");
+        throw 42;
+      }
+    }
+
+    ~SlsWal() {
+      if (sls_wal_close(&wal_) != 0) {
+        perror("sls_wal_close");
+      }
+    }
+
+    SlsWal(SlsWal&&) = default;
+    SlsWal& operator=(SlsWal&&) = default;
+
+    size_t Append(rocksdb::AlignedBuffer& buf, const char *src, size_t append_size) {
+      size_t buffer_remaining = buf.Capacity() - buf.CurrentSize();
+      size_t to_copy = std::min(append_size, buffer_remaining);
+
+      if (to_copy > 0) {
+        sls_wal_memcpy(&wal_, buf.BufferStart() + buf.CurrentSize(), src, to_copy);
+        buf.Size(buf.CurrentSize() + to_copy);
+      }
+      return to_copy;
+    }
+
+    void PadWith(rocksdb::AlignedBuffer& buf, size_t pad_size, int padding) {
+      char bytes[pad_size];
+      memset(bytes, padding, pad_size);
+      Append(buf, bytes, pad_size);
+    }
+
+    sls_wal wal_;
+  };
+
+  SlsWal global_wal;
+}
+// </SLS>
+
 namespace rocksdb {
 
 #ifndef NDEBUG
@@ -239,7 +285,10 @@ Status WritableFileWriter::Append(const Slice& data) {
   // chunks
   if (use_direct_io() || (buf_.Capacity() >= left)) {
     while (left > 0) {
-      size_t appended = buf_.Append(src, left);
+      // <SLS>
+      // size_t appended = buf_.Append(src, left);
+      size_t appended = global_wal.Append(buf_, src, left);
+      // </SLS>
       left -= appended;
       src += appended;
 
@@ -273,7 +322,10 @@ Status WritableFileWriter::Pad(const size_t pad_bytes) {
   // Append() does.
   while (left) {
     size_t append_bytes = std::min(cap, left);
-    buf_.PadWith(append_bytes, 0);
+    // <SLS>
+    // buf_.PadWith(append_bytes, 0);
+    global_wal.PadWith(buf_, append_bytes, 0);
+    // </SLS>
     left -= append_bytes;
     if (left > 0) {
       Status s = Flush();
