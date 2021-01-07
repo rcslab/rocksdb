@@ -20,13 +20,14 @@
 #include "util/sync_point.h"
 
 // <SLS>: Global SLS WAL
+#include <sls.h>
 #include <sls_wal.h>
 
 namespace {
   class SlsWal {
   public:
     SlsWal() {
-      if (sls_wal_open(&wal_, 1000, "/mnt/sls/rocksdb_wal", 4096 * 4096) != 0) {
+      if (sls_wal_open(&wal_, SLS_DEFAULT_PARTITION, 4096 * 4096) != 0) {
         perror("sls_wal_open");
         throw 42;
       }

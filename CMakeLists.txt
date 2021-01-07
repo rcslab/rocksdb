@@ -687,7 +687,7 @@ set(SOURCES
         $<TARGET_OBJECTS:build_version>)
 
 # <SLS>
-include_directories(${SLS_PATH}/libsls)
+include_directories(${SLS_PATH}/include)
 link_directories(${SLS_PATH}/libsls)
 list(APPEND THIRDPARTY_LIBS sls)
 # </SLS>
