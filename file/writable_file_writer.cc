@@ -22,50 +22,65 @@
 // <SLS>: Global SLS WAL
 extern "C" {
 #include <sls.h>
-#include <sls_wal.h>
 }
+#include <fcntl.h>
+#include <unistd.h>
 
 namespace {
+  constexpr size_t WAL_SIZE = 16ULL << 20;
+
   class SlsWal {
   public:
     SlsWal() {
-      if (sls_wal_open(&wal_, SLS_DEFAULT_PARTITION, 4096 * 4096) != 0) {
-        perror("sls_wal_open");
+      ssd_ = open("/dev/stripe/st1", O_RDWR | O_DIRECT);
+      if (ssd_ < 0) {
+        perror("open(ssd_)");
         throw 42;
       }
+
+      if (sls_attach(SLS_DEFAULT_PARTITION, getpid()) != 0) {
+        perror("sls_attach()");
+        throw 42;
+      }
+
+      if (sls_checkpoint(SLS_DEFAULT_PARTITION, true) != 0) {
+        perror("sls_checkpoint()");
+        throw 42;
+      }
+
+      offset_ = 0;
     }
 
     ~SlsWal() {
-      if (sls_wal_close(&wal_) != 0) {
-        perror("sls_wal_close");
+      if (close(ssd_) != 0) {
+        perror("close(ssd_)");
       }
     }
 
     SlsWal(SlsWal&&) = default;
     SlsWal& operator=(SlsWal&&) = default;
 
-    size_t Append(rocksdb::AlignedBuffer& buf, const char *src, size_t append_size) {
-      size_t buffer_remaining = buf.Capacity() - buf.CurrentSize();
-      size_t to_copy = std::min(append_size, buffer_remaining);
-
-      if (to_copy > 0) {
-        sls_wal_memcpy(&wal_, buf.BufferStart() + buf.CurrentSize(), src, to_copy);
-        buf.Size(buf.CurrentSize() + to_copy);
+    int Write(const char *data, size_t len) {
+      len = (len + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+      if (offset_ + len > WAL_SIZE) {
+        if (sls_checkpoint(SLS_DEFAULT_PARTITION, true) != 0) {
+          perror("sls_checkpoint()");
+          return -1;
+        }
+        offset_ = 0;
+      } else {
+        if (pwrite(ssd_, data, len, offset_) != static_cast<ssize_t>(len)) {
+          perror("pwrite(ssd_)");
+          return -1;
+        }
+        offset_ += len;
       }
-      return to_copy;
+
+      return 0;
     }
 
-    void PadWith(rocksdb::AlignedBuffer& buf, size_t pad_size, int padding) {
-      char bytes[pad_size];
-      memset(bytes, padding, pad_size);
-      Append(buf, bytes, pad_size);
-    }
-
-    void Sync() {
-      sls_wal_sync(&wal_);
-    }
-
-    sls_wal wal_;
+    int ssd_;
+    size_t offset_;
   };
 
   SlsWal global_wal;
@@ -120,14 +135,7 @@ Status WritableFileWriter::Append(const Slice& data) {
   // chunks
   if (use_direct_io() || (buf_.Capacity() >= left)) {
     while (left > 0) {
-      // <SLS>
-      size_t appended;
-      if (sls_) {
-        appended = global_wal.Append(buf_, src, left);
-      } else {
-        appended = buf_.Append(src, left);
-      }
-      // </SLS>
+      size_t appended = buf_.Append(src, left);
       left -= appended;
       src += appended;
 
@@ -161,13 +169,7 @@ Status WritableFileWriter::Pad(const size_t pad_bytes) {
   // Append() does.
   while (left) {
     size_t append_bytes = std::min(cap, left);
-    // <SLS>
-    if (sls_) {
-      global_wal.PadWith(buf_, append_bytes, 0);
-    } else {
-      buf_.PadWith(append_bytes, 0);
-    }
-    // </SLS>
+    buf_.PadWith(append_bytes, 0);
     left -= append_bytes;
     if (left > 0) {
       Status s = Flush();
@@ -226,7 +228,7 @@ Status WritableFileWriter::Close() {
 Status WritableFileWriter::Flush() {
   // <SLS>
   if (sls_) {
-    global_wal.Sync();
+    global_wal.Write(buf_.BufferStart(), buf_.CurrentSize());
     buf_.Size(0);
     return Status::OK();
   }
