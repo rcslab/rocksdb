@@ -2766,6 +2766,8 @@ class Benchmark {
         method = &Benchmark::WriteSeq;
       } else if (name == "fillbatch") {
         num_threads = 1;
+        write_options_.sync = false;
+        write_options_.disableWAL = true;
         fresh_db = true;
         entries_per_batch_ = 1000;
         method = &Benchmark::WriteSeq;
