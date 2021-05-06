@@ -27,7 +27,7 @@ extern "C" {
 #include <unistd.h>
 
 namespace {
-  constexpr size_t WAL_SIZE = 16ULL << 20;
+  constexpr size_t WAL_SIZE = 64ULL << 20;
 
   class SlsWal {
   public:
