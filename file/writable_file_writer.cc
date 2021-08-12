@@ -26,7 +26,7 @@ extern "C" {
 #include <fcntl.h>
 #include <unistd.h>
 
-#define DEFAULT_STRIPE_NAME "/dev/stripe/st0"
+#define DEFAULT_WAL_STRIPE "/dev/stripe/st1"
 
 namespace {
   constexpr size_t WAL_SIZE = 64ULL << 20;
@@ -41,7 +41,7 @@ namespace {
           .attr_period = 0
       };
 
-      ssd_ = open(DEFAULT_STRIPE_NAME, O_RDWR | O_DIRECT);
+      ssd_ = open(DEFAULT_WAL_STRIPE, O_RDWR | O_DIRECT);
       if (ssd_ < 0) {
         perror("open(ssd_)");
         throw 42;
