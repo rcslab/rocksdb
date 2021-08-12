@@ -39,7 +39,7 @@ namespace {
           .attr_target = SLS_OSD,
           .attr_mode = SLS_DELTA,
           .attr_period = 0
-      }
+      };
 
       ssd_ = open(DEFAULT_STRIPE_NAME, O_RDWR | O_DIRECT);
       if (ssd_ < 0) {
