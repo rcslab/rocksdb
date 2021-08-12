@@ -26,13 +26,15 @@ extern "C" {
 #include <fcntl.h>
 #include <unistd.h>
 
+#define DEFAULT_STRIPE_NAME "/dev/stripe/st0"
+
 namespace {
   constexpr size_t WAL_SIZE = 64ULL << 20;
 
   class SlsWal {
   public:
     SlsWal() {
-      ssd_ = open("/dev/stripe/st1", O_RDWR | O_DIRECT);
+      ssd_ = open(DEFAULT_STRIPE_NAME, O_RDWR | O_DIRECT);
       if (ssd_ < 0) {
         perror("open(ssd_)");
         throw 42;
