@@ -30,22 +30,34 @@ extern "C" {
 
 namespace {
   constexpr size_t WAL_SIZE = 64ULL << 20;
+  constexpr uint64_t oid = 1;
 
   class SlsWal {
   public:
     SlsWal() {
+      const struct sls_attr attr = (struct sls_attr) {
+          .attr_target = SLS_OSD,
+          .attr_mode = SLS_DELTA,
+          .attr_period = 0
+      }
+
       ssd_ = open(DEFAULT_STRIPE_NAME, O_RDWR | O_DIRECT);
       if (ssd_ < 0) {
         perror("open(ssd_)");
         throw 42;
       }
 
-      if (sls_attach(SLS_DEFAULT_PARTITION, getpid()) != 0) {
+      if (sls_partadd(oid, attr)) {
+        perror("sls_partadd()");
+        throw 42;
+      }
+
+      if (sls_attach(oid, getpid()) != 0) {
         perror("sls_attach()");
         throw 42;
       }
 
-      if (sls_checkpoint(SLS_DEFAULT_PARTITION, true) != 0) {
+      if (sls_checkpoint(oid, true) != 0) {
         perror("sls_checkpoint()");
         throw 42;
       }
