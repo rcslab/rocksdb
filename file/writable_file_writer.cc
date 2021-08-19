@@ -26,7 +26,7 @@ extern "C" {
 #include <fcntl.h>
 #include <unistd.h>
 
-#define DEFAULT_WAL_STRIPE "/dev/stripe/st1"
+#define DEFAULT_WAL_STRIPE "/dev/wal"
 
 namespace {
   constexpr size_t WAL_SIZE = 64ULL << 20;

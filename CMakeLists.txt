@@ -716,7 +716,7 @@ set(SOURCES
 # <SLS>
 include_directories(${SLS_PATH}/include)
 link_directories(${SLS_PATH}/libsls)
-list(APPEND THIRDPARTY_LIBS sls)
+list(APPEND THIRDPARTY_LIBS sls_p)
 # </SLS>
 
 if(HAVE_SSE42 AND NOT MSVC)
