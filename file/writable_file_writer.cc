@@ -40,6 +40,7 @@ namespace {
           .attr_mode = SLS_DELTA,
           .attr_period = 0,
 	  .attr_amplification = 1,
+	  .attr_flags = SLSATTR_IGNUNLINKED,
       };
 
       ssd_ = open(DEFAULT_WAL_STRIPE, O_RDWR | O_DIRECT);
