@@ -38,7 +38,8 @@ namespace {
       const struct sls_attr attr = (struct sls_attr) {
           .attr_target = SLS_OSD,
           .attr_mode = SLS_DELTA,
-          .attr_period = 0
+          .attr_period = 0,
+	  .attr_amplification = 1,
       };
 
       ssd_ = open(DEFAULT_WAL_STRIPE, O_RDWR | O_DIRECT);
