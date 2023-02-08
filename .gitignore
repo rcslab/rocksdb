@@ -80,3 +80,6 @@ fbcode/
 fbcode
 buckifier/*.pyc
 buckifier/__pycache__
+
+baseline/
+sls/
