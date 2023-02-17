@@ -49,7 +49,7 @@ namespace {
         throw 42;
       }
 
-      if (sls_partadd(oid, attr)) {
+      if (sls_partadd(oid, attr, -1)) {
         perror("sls_partadd()");
         throw 42;
       }
