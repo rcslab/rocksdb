@@ -28,6 +28,4 @@ extern Status DeleteDBFile(const ImmutableDBOptions* db_options,
                            const std::string& path_to_sync, const bool force_bg,
                            const bool force_fg);
 
-extern bool IsWalDirSameAsDBPath(const ImmutableDBOptions* db_options);
-
 }  // namespace ROCKSDB_NAMESPACE

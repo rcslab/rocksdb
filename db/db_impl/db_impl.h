@@ -39,7 +39,6 @@
 #include "db/snapshot_impl.h"
 #include "db/trim_history_scheduler.h"
 #include "db/version_edit.h"
-#include "db/wal_manager.h"
 #include "db/write_controller.h"
 #include "db/write_thread.h"
 #include "logging/event_logger.h"
@@ -2007,10 +2006,6 @@ class DBImpl : public DB {
   // REQUIRES: mutex held
   int num_running_ingest_file_;
 
-#ifndef ROCKSDB_LITE
-  WalManager wal_manager_;
-#endif  // ROCKSDB_LITE
-
   // Unified interface for logging events
   EventLogger event_logger_;
 
@@ -2093,8 +2088,6 @@ class DBImpl : public DB {
   // results sequentially. Flush results of memtables with lower IDs get
   // installed to MANIFEST first.
   InstrumentedCondVar atomic_flush_install_cv_;
-
-  bool wal_in_db_path_;
 };
 
 extern Options SanitizeOptions(const std::string& db, const Options& src);

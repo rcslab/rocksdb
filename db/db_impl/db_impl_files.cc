@@ -258,10 +258,13 @@ void DBImpl::DeleteObsoleteFileImpl(int job_id, const std::string& fname,
                                     const std::string& path_to_sync,
                                     FileType type, uint64_t number) {
   Status file_deletion_status;
-  if (type == kTableFile || type == kLogFile) {
+  if (type == kTableFile) {
     file_deletion_status =
         DeleteDBFile(&immutable_db_options_, fname, path_to_sync,
-                     /*force_bg=*/false, /*force_fg=*/!wal_in_db_path_);
+                     /*force_bg=*/false, /*force_fg=*/false);
+  } else if (type == kLogFile) {
+	ROCKS_LOG_ERROR(immutable_db_options_.info_log,
+			"Found log file in DeleteObsoleteFileImpl");
   } else {
     file_deletion_status = env_->DeleteFile(fname);
   }
@@ -478,14 +481,6 @@ void DBImpl::PurgeObsoleteFiles(JobContext& state, bool schedule_only) {
               to_delete;
     }
 
-#ifndef ROCKSDB_LITE
-    if (type == kLogFile && (immutable_db_options_.wal_ttl_seconds > 0 ||
-                             immutable_db_options_.wal_size_limit_mb > 0)) {
-      wal_manager_.ArchiveWALFile(fname, number);
-      continue;
-    }
-#endif  // !ROCKSDB_LITE
-
     // If I do not own these files, e.g. secondary instance with max_open_files
     // = -1, then no need to delete or schedule delete these files since they
     // will be removed by their owner, e.g. the primary instance.
@@ -549,9 +544,6 @@ void DBImpl::PurgeObsoleteFiles(JobContext& state, bool schedule_only) {
       }
     }
   }
-#ifndef ROCKSDB_LITE
-  wal_manager_.PurgeObsoleteWALFiles();
-#endif  // ROCKSDB_LITE
   LogFlush(immutable_db_options_.info_log);
   InstrumentedMutexLock l(&mutex_);
   --pending_purge_obsolete_files_;

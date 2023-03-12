@@ -16,16 +16,28 @@
 #include <string>
 #include <vector>
 
-#include "db/wal_manager.h"
+#include "db/log_reader.h"
+#include "db/log_writer.h"
+#include "db/transaction_log_impl.h"
+#include "db/write_batch_internal.h"
 #include "file/file_util.h"
 #include "file/filename.h"
+#include "file/sequence_file_reader.h"
+#include "logging/logging.h"
 #include "port/port.h"
 #include "rocksdb/db.h"
 #include "rocksdb/env.h"
 #include "rocksdb/metadata.h"
+#include "rocksdb/options.h"
 #include "rocksdb/transaction_log.h"
 #include "rocksdb/utilities/checkpoint.h"
+#include "rocksdb/write_batch.h"
 #include "test_util/sync_point.h"
+#include "util/cast_util.h"
+#include "util/coding.h"
+#include "util/mutexlock.h"
+#include "util/string_util.h"
+
 
 namespace ROCKSDB_NAMESPACE {
 
