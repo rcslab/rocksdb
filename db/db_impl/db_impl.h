@@ -985,7 +985,7 @@ class DBImpl : public DB {
 
   // State below is protected by mutex_
   // With two_write_queues enabled, some of the variables that accessed during
-  // WriteToWAL need different synchronization: log_empty_, alive_log_files_,
+  // WriteToWAL need different synchronization: alive_log_files_,
   // logs_, logfile_number_. Refer to the definition of each variable below for
   // more description.
   mutable InstrumentedMutex mutex_;
@@ -1778,9 +1778,8 @@ class DBImpl : public DB {
   // In addition to mutex_, log_write_mutex_ protected writes to stats_history_
   InstrumentedMutex stats_history_mutex_;
   // In addition to mutex_, log_write_mutex_ protected writes to logs_ and
-  // logfile_number_. With two_write_queues it also protects alive_log_files_,
-  // and log_empty_. Refer to the definition of each variable below for more
-  // details.
+  // logfile_number_. With two_write_queues it also protects alive_log_files_.
+  // Refer to the definition of each variable below for more details.
   // Note: to avoid dealock, if needed to acquire both log_write_mutex_ and
   // mutex_, the order should be first mutex_ and then log_write_mutex_.
   InstrumentedMutex log_write_mutex_;
@@ -1809,13 +1808,6 @@ class DBImpl : public DB {
   std::deque<uint64_t>
       log_recycle_files_;  // a list of log files that we can recycle
   bool log_dir_synced_;
-  // Without two_write_queues, read and writes to log_empty_ are protected by
-  // mutex_. Since it is currently updated/read only in write_thread_, it can be
-  // accessed from the same write_thread_ without any locks. With
-  // two_write_queues writes, where it can be updated in different threads,
-  // read and writes are protected by log_write_mutex_ instead. This is to avoid
-  // expesnive mutex_ lock during WAL write, which update log_empty_.
-  bool log_empty_;
 
   ColumnFamilyHandleImpl* persist_stats_cf_handle_;
 

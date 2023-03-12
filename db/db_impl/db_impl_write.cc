@@ -1018,7 +1018,6 @@ IOStatus DBImpl::WriteToWAL(const WriteBatch& merged_batch,
   // TODO(myabandeh): it might be unsafe to access alive_log_files_.back() here
   // since alive_log_files_ might be modified concurrently
   alive_log_files_.back().AddSize(log_entry.size());
-  log_empty_ = false;
   return io_s;
 }
 
@@ -1635,7 +1634,6 @@ Status DBImpl::SwitchMemtable(ColumnFamilyData* cfd, WriteContext* context) {
   mutex_.AssertHeld();
   WriteThread::Writer nonmem_w;
   std::unique_ptr<WritableFile> lfile;
-  log::Writer* new_log = nullptr;
   MemTable* new_mem = nullptr;
 
   // Recoverable state is persisted in WAL. After memtable switch, WAL might
@@ -1648,20 +1646,6 @@ Status DBImpl::SwitchMemtable(ColumnFamilyData* cfd, WriteContext* context) {
   // Attempt to switch to a new memtable and trigger flush of old.
   // Do this without holding the dbmutex lock.
   assert(versions_->prev_log_number() == 0);
-  if (two_write_queues_) {
-    log_write_mutex_.Lock();
-  }
-  bool creating_new_log = !log_empty_;
-  if (two_write_queues_) {
-    log_write_mutex_.Unlock();
-  }
-  uint64_t recycle_log_number = 0;
-  if (creating_new_log && immutable_db_options_.recycle_log_file_num &&
-      !log_recycle_files_.empty()) {
-    recycle_log_number = log_recycle_files_.front();
-  }
-  uint64_t new_log_number =
-      creating_new_log ? versions_->NewFileNumber() : logfile_number_;
   const MutableCFOptions mutable_cf_options = *cfd->GetLatestMutableCFOptions();
 
   // Set memtable_info for memtable sealed callback
@@ -1679,12 +1663,6 @@ Status DBImpl::SwitchMemtable(ColumnFamilyData* cfd, WriteContext* context) {
   const auto preallocate_block_size =
       GetWalPreallocateBlockSize(mutable_cf_options.write_buffer_size);
   mutex_.Unlock();
-  if (creating_new_log) {
-    // TODO: Write buffer size passed in should be max of all CF's instead
-    // of mutable_cf_options.write_buffer_size.
-    s = CreateWAL(new_log_number, recycle_log_number, preallocate_block_size,
-                  &new_log);
-  }
   if (s.ok()) {
     SequenceNumber seq = versions_->LastSequence();
     new_mem = cfd->ConstructNewMemtable(mutable_cf_options, seq);
@@ -1693,62 +1671,8 @@ Status DBImpl::SwitchMemtable(ColumnFamilyData* cfd, WriteContext* context) {
   ROCKS_LOG_INFO(immutable_db_options_.info_log,
                  "[%s] New memtable created with log file: #%" PRIu64
                  ". Immutable memtables: %d.\n",
-                 cfd->GetName().c_str(), new_log_number, num_imm_unflushed);
+                 cfd->GetName().c_str(), logfile_number_, num_imm_unflushed);
   mutex_.Lock();
-  if (recycle_log_number != 0) {
-    // Since renaming the file is done outside DB mutex, we need to ensure
-    // concurrent full purges don't delete the file while we're recycling it.
-    // To achieve that we hold the old log number in the recyclable list until
-    // after it has been renamed.
-    assert(log_recycle_files_.front() == recycle_log_number);
-    log_recycle_files_.pop_front();
-  }
-  if (s.ok() && creating_new_log) {
-    log_write_mutex_.Lock();
-    assert(new_log != nullptr);
-    if (!logs_.empty()) {
-      // Alway flush the buffer of the last log before switching to a new one
-      log::Writer* cur_log_writer = logs_.back().writer;
-      s = cur_log_writer->WriteBuffer();
-      if (!s.ok()) {
-        ROCKS_LOG_WARN(immutable_db_options_.info_log,
-                       "[%s] Failed to switch from #%" PRIu64 " to #%" PRIu64
-                       "  WAL file\n",
-                       cfd->GetName().c_str(), cur_log_writer->get_log_number(),
-                       new_log_number);
-      }
-    }
-    if (s.ok()) {
-      logfile_number_ = new_log_number;
-      log_empty_ = true;
-      log_dir_synced_ = false;
-      logs_.emplace_back(logfile_number_, new_log);
-      alive_log_files_.push_back(LogFileNumberSize(logfile_number_));
-    }
-    log_write_mutex_.Unlock();
-  }
-
-  if (!s.ok()) {
-    // how do we fail if we're not creating new log?
-    assert(creating_new_log);
-    if (new_mem) {
-      delete new_mem;
-    }
-    if (new_log) {
-      delete new_log;
-    }
-    SuperVersion* new_superversion =
-        context->superversion_context.new_superversion.release();
-    if (new_superversion != nullptr) {
-      delete new_superversion;
-    }
-    // We may have lost data from the WritableFileBuffer in-memory buffer for
-    // the current log, so treat it as a fatal error and set bg_error
-    error_handler_.SetBGError(s, BackgroundErrorReason::kMemTable);
-    // Read back bg_error in order to get the right severity
-    s = error_handler_.GetBGError();
-    return s;
-  }
 
   for (auto loop_cfd : *versions_->GetColumnFamilySet()) {
     // all this is just optimization to delete logs that
@@ -1757,9 +1681,6 @@ Status DBImpl::SwitchMemtable(ColumnFamilyData* cfd, WriteContext* context) {
     // advance the log number. no need to persist this in the manifest
     if (loop_cfd->mem()->GetFirstSequenceNumber() == 0 &&
         loop_cfd->imm()->NumNotFlushed() == 0) {
-      if (creating_new_log) {
-        loop_cfd->SetLogNumber(logfile_number_);
-      }
       loop_cfd->mem()->SetCreationSeq(versions_->LastSequence());
     }
   }
