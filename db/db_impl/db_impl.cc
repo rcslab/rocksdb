@@ -194,9 +194,6 @@ DBImpl::DBImpl(const DBOptions& options, const std::string& dbname,
       has_unpersisted_data_(false),
       unable_to_release_oldest_log_(false),
       num_running_ingest_file_(0),
-#ifndef ROCKSDB_LITE
-      wal_manager_(immutable_db_options_, file_options_, seq_per_batch),
-#endif  // ROCKSDB_LITE
       event_logger_(immutable_db_options_.info_log.get()),
       bg_work_paused_(0),
       bg_compaction_paused_(0),
@@ -3067,8 +3064,10 @@ Status DBImpl::GetUpdatesSince(
   if (seq > versions_->LastSequence()) {
     return Status::NotFound("Requested sequence not yet written in the db");
   }
-  return wal_manager_.GetUpdatesSince(seq, iter, read_options, versions_.get());
+  /* XXX Find out what this does and implement it. */
+  return Status::OK();
 }
+
 
 Status DBImpl::DeleteFile(std::string name) {
   uint64_t number;
@@ -3084,19 +3083,10 @@ Status DBImpl::DeleteFile(std::string name) {
   Status status;
   if (type == kLogFile) {
     // Only allow deleting archived log files
-    if (log_type != kArchivedLogFile) {
       ROCKS_LOG_ERROR(immutable_db_options_.info_log,
-                      "DeleteFile %s failed - not archived log.\n",
+                      "DeleteFile requested with log %s",
                       name.c_str());
-      return Status::NotSupported("Delete only supported for archived logs");
-    }
-    status = wal_manager_.DeleteFile(name, number);
-    if (!status.ok()) {
-      ROCKS_LOG_ERROR(immutable_db_options_.info_log,
-                      "DeleteFile %s failed -- %s.\n", name.c_str(),
-                      status.ToString().c_str());
-    }
-    return status;
+    return Status::OK();
   }
 
   int level;
@@ -3448,7 +3438,6 @@ Status DestroyDB(const std::string& dbname, const Options& options,
   ImmutableDBOptions soptions(SanitizeOptions(dbname, options));
   Env* env = soptions.env;
   std::vector<std::string> filenames;
-  bool wal_in_db_path = IsWalDirSameAsDBPath(&soptions);
 
   // Reset the logger because it holds a handle to the
   // log file and prevents cleanup and directory removal
@@ -3470,10 +3459,14 @@ Status DestroyDB(const std::string& dbname, const Options& options,
         std::string path_to_delete = dbname + "/" + fname;
         if (type == kMetaDatabase) {
           del = DestroyDB(path_to_delete, options);
-        } else if (type == kTableFile || type == kLogFile) {
+        } else if (type == kTableFile) {
           del = DeleteDBFile(&soptions, path_to_delete, dbname,
-                             /*force_bg=*/false, /*force_fg=*/!wal_in_db_path);
-        } else {
+                             /*force_bg=*/false, /*force_fg=*/false);
+        } else if (type == kLogFile) {
+		ROCKS_LOG_WARN(soptions.info_log,
+				"Found log fileduring DestroyDB");
+          
+	} else {
           del = env->DeleteFile(path_to_delete);
         }
         if (result.ok() && !del.ok()) {
@@ -3526,7 +3519,7 @@ Status DestroyDB(const std::string& dbname, const Options& options,
         if (ParseFileName(file, &number, &type) && type == kLogFile) {
           Status del =
               DeleteDBFile(&soptions, archivedir + "/" + file, archivedir,
-                           /*force_bg=*/false, /*force_fg=*/!wal_in_db_path);
+                           /*force_bg=*/false, /*force_fg=*/false);
           if (result.ok() && !del.ok()) {
             result = del;
           }
@@ -3542,7 +3535,7 @@ Status DestroyDB(const std::string& dbname, const Options& options,
           Status del =
               DeleteDBFile(&soptions, LogFileName(soptions.wal_dir, number),
                            soptions.wal_dir, /*force_bg=*/false,
-                           /*force_fg=*/!wal_in_db_path);
+                           /*force_fg=*/!false);
           if (result.ok() && !del.ok()) {
             result = del;
           }
