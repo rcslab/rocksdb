@@ -1147,7 +1147,6 @@ Status DBImpl::RestoreAliveLogFiles(const std::vector<uint64_t>& log_numbers) {
   // Mark these as alive so they'll be considered for deletion later by
   // FindObsoleteFiles()
   total_log_size_ = 0;
-  log_empty_ = false;
   for (auto log_number : log_numbers) {
     LogFileNumberSize log(log_number);
     std::string fname = LogFileName(immutable_db_options_.wal_dir, log_number);
