@@ -1322,8 +1322,7 @@ Status DB::Open(const DBOptions& db_options, const std::string& dbname,
                       !kSeqPerBatch, kBatchPerTxn);
 }
 
-Status DBImpl::CreateWAL(uint64_t log_file_num, uint64_t recycle_log_number,
-                         size_t preallocate_block_size, log::Writer** new_log) {
+Status DBImpl::CreateWAL(uint64_t log_file_num, log::Writer** new_log) {
   Status s;
   std::unique_ptr<FSWritableFile> lfile;
 
@@ -1334,23 +1333,10 @@ Status DBImpl::CreateWAL(uint64_t log_file_num, uint64_t recycle_log_number,
   std::string log_fname =
       LogFileName(immutable_db_options_.wal_dir, log_file_num);
 
-  if (recycle_log_number) {
-    ROCKS_LOG_INFO(immutable_db_options_.info_log,
-                   "reusing log %" PRIu64 " from recycle list\n",
-                   recycle_log_number);
-    std::string old_log_fname =
-        LogFileName(immutable_db_options_.wal_dir, recycle_log_number);
-    TEST_SYNC_POINT("DBImpl::CreateWAL:BeforeReuseWritableFile1");
-    TEST_SYNC_POINT("DBImpl::CreateWAL:BeforeReuseWritableFile2");
-    s = fs_->ReuseWritableFile(log_fname, old_log_fname, opt_file_options,
-                               &lfile, /*dbg=*/nullptr);
-  } else {
-    s = NewWritableFile(fs_.get(), log_fname, &lfile, opt_file_options);
-  }
+  s = NewWritableFile(fs_.get(), log_fname, &lfile, opt_file_options);
 
   if (s.ok()) {
     lfile->SetWriteLifeTimeHint(CalculateWALWriteHint());
-    lfile->SetPreallocationBlockSize(preallocate_block_size);
 
     const auto& listeners = immutable_db_options_.listeners;
     std::unique_ptr<WritableFileWriter> file_writer(
@@ -1428,10 +1414,7 @@ Status DBImpl::Open(const DBOptions& db_options, const std::string& dbname,
   if (s.ok()) {
     uint64_t new_log_number = impl->versions_->NewFileNumber();
     log::Writer* new_log = nullptr;
-    const size_t preallocate_block_size =
-        impl->GetWalPreallocateBlockSize(max_write_buffer_size);
-    s = impl->CreateWAL(new_log_number, 0 /*recycle_log_number*/,
-                        preallocate_block_size, &new_log);
+    s = impl->CreateWAL(new_log_number, &new_log);
     if (s.ok()) {
       InstrumentedMutexLock wl(&impl->log_write_mutex_);
       impl->logfile_number_ = new_log_number;
