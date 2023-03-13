@@ -630,6 +630,8 @@ DEFINE_bool(disable_wal, false, "If true, do not write WAL for write.");
 
 DEFINE_string(wal_path, "", "If not empty, use the given path for WAL");
 
+DEFINE_string(wal_dir, "", "[DEPRECATED, ONLY PRESENT FOR COMPATIBILITY");
+
 DEFINE_string(truth_db, "/dev/shm/truth_db/dbbench",
               "Truth key/values used when using verify");
 
