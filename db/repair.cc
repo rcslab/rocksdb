@@ -259,13 +259,6 @@ class Repairer {
     return Status::Corruption(dbname_, "repair found no files");
   }
 
-  void ConvertLogFilesToTables() {
-  }
-
-  Status ConvertLogToTable(uint64_t log) {
-	  return Status::OK();
-  }
-
   void ExtractMetaData() {
     for (size_t i = 0; i < table_fds_.size(); i++) {
       TableInfo t;
