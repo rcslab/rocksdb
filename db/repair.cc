@@ -201,7 +201,6 @@ class Repairer {
       // extract -- we need to clear it here since metadata for existing SST
       // files has been extracted already
       table_fds_.clear();
-      ConvertLogFilesToTables();
       ExtractMetaData();
       status = AddTables();
     }
