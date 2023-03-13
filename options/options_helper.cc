@@ -50,7 +50,7 @@ DBOptions BuildDBOptions(const ImmutableDBOptions& immutable_db_options,
   options.use_fsync = immutable_db_options.use_fsync;
   options.db_paths = immutable_db_options.db_paths;
   options.db_log_dir = immutable_db_options.db_log_dir;
-  options.wal_dir = immutable_db_options.wal_dir;
+  options.wal_path = immutable_db_options.wal_path;
   options.delete_obsolete_files_period_micros =
       mutable_db_options.delete_obsolete_files_period_micros;
   options.max_background_jobs = mutable_db_options.max_background_jobs;
@@ -1576,8 +1576,8 @@ std::unordered_map<std::string, OptionTypeInfo>
         {"db_log_dir",
          {offsetof(struct DBOptions, db_log_dir), OptionType::kString,
           OptionVerificationType::kNormal, false, 0}},
-        {"wal_dir",
-         {offsetof(struct DBOptions, wal_dir), OptionType::kString,
+        {"wal_path",
+         {offsetof(struct DBOptions, wal_path), OptionType::kString,
           OptionVerificationType::kNormal, false, 0}},
         {"max_subcompactions",
          {offsetof(struct DBOptions, max_subcompactions), OptionType::kUInt32T,

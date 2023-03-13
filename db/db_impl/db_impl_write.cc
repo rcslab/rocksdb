@@ -1064,13 +1064,6 @@ IOStatus DBImpl::WriteToWAL(const WriteThread::WriteGroup& write_group,
         break;
       }
     }
-
-    if (io_s.ok() && need_log_dir_sync) {
-      // We only sync WAL directory the first time WAL syncing is
-      // requested, so that in case users never turn on WAL sync,
-      // we can avoid the disk I/O in the write code path.
-      io_s = directories_.GetWalDir()->Fsync(IOOptions(), nullptr);
-    }
   }
 
   if (merged_batch == &tmp_batch_) {

@@ -512,13 +512,8 @@ struct DBOptions {
   // name's prefix.
   std::string db_log_dir = "";
 
-  // This specifies the absolute dir path for write-ahead logs (WAL).
-  // If it is empty, the log files will be in the same dir as data,
-  //   dbname is used as the data dir by default
-  // If it is non empty, the log files will be in kept the specified dir.
-  // When destroying the db,
-  //   all log files in wal_dir and the dir itself is deleted
-  std::string wal_dir = "";
+  // This specifies the device path for the write ahead log (WAL).
+  std::string wal_path = "";
 
   // The periodicity when obsolete files get deleted. The default
   // value is 6 hours. The files that get out of scope by compaction

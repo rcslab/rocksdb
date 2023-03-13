@@ -316,33 +316,6 @@ Status CheckpointImpl::CreateCustomCheckpoint(
   ROCKS_LOG_INFO(db_options.info_log, "Number of log files %" ROCKSDB_PRIszt,
                  live_wal_files.size());
 
-  // Link WAL files. Copy exact size of last one because it is the only one
-  // that has changes after the last flush.
-  for (size_t i = 0; s.ok() && i < wal_size; ++i) {
-    if ((live_wal_files[i]->Type() == kAliveLogFile) &&
-        (!flush_memtable ||
-         live_wal_files[i]->StartSequence() >= *sequence_number ||
-         live_wal_files[i]->LogNumber() >= min_log_num)) {
-      if (i + 1 == wal_size) {
-        s = copy_file_cb(db_options.wal_dir, live_wal_files[i]->PathName(),
-                         live_wal_files[i]->SizeFileBytes(), kLogFile);
-        break;
-      }
-      if (same_fs) {
-        // we only care about live log files
-        s = link_file_cb(db_options.wal_dir, live_wal_files[i]->PathName(),
-                         kLogFile);
-        if (s.IsNotSupported()) {
-          same_fs = false;
-          s = Status::OK();
-        }
-      }
-      if (!same_fs) {
-        s = copy_file_cb(db_options.wal_dir, live_wal_files[i]->PathName(), 0,
-                         kLogFile);
-      }
-    }
-  }
 
   return s;
 }

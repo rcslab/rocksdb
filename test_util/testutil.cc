@@ -288,7 +288,7 @@ void RandomInitDBOptions(DBOptions* db_opt, Random* rnd) {
 
   // std::string options
   db_opt->db_log_dir = "path/to/db_log_dir";
-  db_opt->wal_dir = "path/to/wal_dir";
+  db_opt->wal_path = "path/to/wal";
 
   // uint32_t options
   db_opt->max_subcompactions = rnd->Uniform(100000);

@@ -628,7 +628,7 @@ DEFINE_bool(use_fsync, false, "If true, issue fsync instead of fdatasync");
 
 DEFINE_bool(disable_wal, false, "If true, do not write WAL for write.");
 
-DEFINE_string(wal_dir, "", "If not empty, use the given dir for WAL");
+DEFINE_string(wal_path, "", "If not empty, use the given path for WAL");
 
 DEFINE_string(truth_db, "/dev/shm/truth_db/dbbench",
               "Truth key/values used when using verify");
@@ -2701,8 +2701,8 @@ class Benchmark {
     if (!FLAGS_use_existing_db) {
       Options options;
       options.env = FLAGS_env;
-      if (!FLAGS_wal_dir.empty()) {
-        options.wal_dir = FLAGS_wal_dir;
+      if (!FLAGS_wal_path.empty()) {
+        options.wal_path = FLAGS_wal_path;
       }
 #ifndef ROCKSDB_LITE
       if (use_blob_db_) {
@@ -2710,15 +2710,9 @@ class Benchmark {
       }
 #endif  // !ROCKSDB_LITE
       DestroyDB(FLAGS_db, options);
-      if (!FLAGS_wal_dir.empty()) {
-        FLAGS_env->DeleteDir(FLAGS_wal_dir);
-      }
 
       if (FLAGS_num_multi_db > 1) {
         FLAGS_env->CreateDir(FLAGS_db);
-        if (!FLAGS_wal_dir.empty()) {
-          FLAGS_env->CreateDir(FLAGS_wal_dir);
-        }
       }
     }
 
@@ -3134,9 +3128,6 @@ class Benchmark {
           Options options = open_options_;
           for (size_t i = 0; i < multi_dbs_.size(); i++) {
             delete multi_dbs_[i].db;
-            if (!open_options_.wal_dir.empty()) {
-              options.wal_dir = GetPathForMultiple(open_options_.wal_dir, i);
-            }
             DestroyDB(GetPathForMultiple(FLAGS_db, i), options);
           }
           multi_dbs_.clear();
@@ -3996,7 +3987,7 @@ class Benchmark {
 
     options.create_missing_column_families = FLAGS_num_column_families > 1;
     options.statistics = dbstats;
-    options.wal_dir = FLAGS_wal_dir;
+    options.wal_path = FLAGS_wal_path;
     options.create_if_missing = !FLAGS_use_existing_db;
     options.dump_malloc_stats = FLAGS_dump_malloc_stats;
     options.stats_dump_period_sec =
@@ -4069,14 +4060,9 @@ class Benchmark {
     } else {
       multi_dbs_.clear();
       multi_dbs_.resize(FLAGS_num_multi_db);
-      auto wal_dir = options.wal_dir;
       for (int i = 0; i < FLAGS_num_multi_db; i++) {
-        if (!wal_dir.empty()) {
-          options.wal_dir = GetPathForMultiple(wal_dir, i);
-        }
         OpenDb(options, GetPathForMultiple(FLAGS_db, i), &multi_dbs_[i]);
       }
-      options.wal_dir = wal_dir;
     }
 
     // KeepFilter is a noop filter, this can be used to test compaction filter

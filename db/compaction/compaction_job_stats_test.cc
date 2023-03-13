@@ -83,7 +83,6 @@ class CompactionJobStatsTest : public testing::Test,
                                public testing::WithParamInterface<bool> {
  public:
   std::string dbname_;
-  std::string alternative_wal_dir_;
   Env* env_;
   DB* db_;
   std::vector<ColumnFamilyHandle*> handles_;
@@ -95,13 +94,11 @@ class CompactionJobStatsTest : public testing::Test,
     env_->SetBackgroundThreads(1, Env::LOW);
     env_->SetBackgroundThreads(1, Env::HIGH);
     dbname_ = test::PerThreadDBPath("compaction_job_stats_test");
-    alternative_wal_dir_ = dbname_ + "/wal";
     Options options;
     options.create_if_missing = true;
     max_subcompactions_ = GetParam();
     options.max_subcompactions = max_subcompactions_;
     auto delete_options = options;
-    delete_options.wal_dir = alternative_wal_dir_;
     EXPECT_OK(DestroyDB(dbname_, delete_options));
     // Destroy it for not alternative WAL dir is used.
     EXPECT_OK(DestroyDB(dbname_, options));

@@ -82,7 +82,6 @@ struct MemTableInfo;
 class Directories {
  public:
   IOStatus SetDirectories(FileSystem* fs, const std::string& dbname,
-                          const std::string& wal_dir,
                           const std::vector<DbPath>& data_paths);
 
   FSDirectory* GetDataDir(size_t path_id) const {
@@ -95,19 +94,11 @@ class Directories {
     return ret_dir;
   }
 
-  FSDirectory* GetWalDir() {
-    if (wal_dir_) {
-      return wal_dir_.get();
-    }
-    return db_dir_.get();
-  }
-
   FSDirectory* GetDbDir() { return db_dir_.get(); }
 
  private:
   std::unique_ptr<FSDirectory> db_dir_;
   std::vector<std::unique_ptr<FSDirectory>> data_dirs_;
-  std::unique_ptr<FSDirectory> wal_dir_;
 };
 
 // While DB is the public interface of RocksDB, and DBImpl is the actual
