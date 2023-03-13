@@ -96,28 +96,5 @@ void DumpDBFileSummary(const ImmutableDBOptions& options,
     file_info.clear();
   }
 
-  // Get wal file in wal_dir
-  if (dbname.compare(options.wal_dir) != 0) {
-    if (!env->GetChildren(options.wal_dir, &files).ok()) {
-      Error(options.info_log,
-          "Error when reading %s dir\n",
-          options.wal_dir.c_str());
-      return;
-    }
-    wal_info.clear();
-    for (const std::string& file : files) {
-      if (ParseFileName(file, &number, &type)) {
-        if (type == kLogFile) {
-          env->GetFileSize(options.wal_dir + "/" + file, &file_size);
-          char str[16];
-          snprintf(str, sizeof(str), "%" PRIu64, file_size);
-          wal_info.append(file).append(" size: ").
-              append(str).append(" ; ");
-        }
-      }
-    }
-  }
-  Header(options.info_log, "Write Ahead Log file in %s: %s\n",
-         options.wal_dir.c_str(), wal_info.c_str());
 }
 }  // namespace ROCKSDB_NAMESPACE

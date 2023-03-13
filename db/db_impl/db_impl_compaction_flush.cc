@@ -116,9 +116,6 @@ IOStatus DBImpl::SyncClosedLogs(JobContext* job_context) {
         }
       }
     }
-    if (io_s.ok()) {
-      io_s = directories_.GetWalDir()->Fsync(IOOptions(), nullptr);
-    }
 
     mutex_.Lock();
 

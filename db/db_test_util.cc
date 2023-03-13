@@ -75,12 +75,10 @@ DBTestBase::DBTestBase(const std::string path)
   env_->SetBackgroundThreads(1, Env::LOW);
   env_->SetBackgroundThreads(1, Env::HIGH);
   dbname_ = test::PerThreadDBPath(env_, path);
-  alternative_wal_dir_ = dbname_ + "/wal";
   alternative_db_log_dir_ = dbname_ + "/db_log_dir";
   auto options = CurrentOptions();
   options.env = env_;
   auto delete_options = options;
-  delete_options.wal_dir = alternative_wal_dir_;
   EXPECT_OK(DestroyDB(dbname_, delete_options));
   // Destroy it for not alternative WAL dir is used.
   EXPECT_OK(DestroyDB(dbname_, options));
@@ -443,12 +441,6 @@ Options DBTestBase::GetOptions(
       break;
     case kDBLogDir:
       options.db_log_dir = alternative_db_log_dir_;
-      break;
-    case kWalDirAndMmapReads:
-      options.wal_dir = alternative_wal_dir_;
-      // mmap reads should be orthogonal to WalDir setting, so we piggyback to
-      // this option config to test mmap reads as well
-      options.allow_mmap_reads = can_allow_mmap;
       break;
     case kManifestFileSize:
       options.max_manifest_file_size = 50;  // 50 bytes
@@ -1090,12 +1082,7 @@ size_t DBTestBase::CountFiles() {
   std::vector<std::string> files;
   env_->GetChildren(dbname_, &files);
 
-  std::vector<std::string> logfiles;
-  if (dbname_ != last_options_.wal_dir) {
-    env_->GetChildren(last_options_.wal_dir, &logfiles);
-  }
-
-  return files.size() + logfiles.size();
+  return files.size();
 }
 
 uint64_t DBTestBase::Size(const Slice& start, const Slice& limit, int cf) {

@@ -33,7 +33,7 @@ struct ImmutableDBOptions {
   bool use_fsync;
   std::vector<DbPath> db_paths;
   std::string db_log_dir;
-  std::string wal_dir;
+  std::string wal_path;
   uint32_t max_subcompactions;
   int max_background_flushes;
   size_t max_log_file_size;

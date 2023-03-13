@@ -36,7 +36,7 @@ ImmutableDBOptions::ImmutableDBOptions(const DBOptions& options)
       use_fsync(options.use_fsync),
       db_paths(options.db_paths),
       db_log_dir(options.db_log_dir),
-      wal_dir(options.wal_dir),
+      wal_path(options.wal_path),
       max_subcompactions(options.max_subcompactions),
       max_background_flushes(options.max_background_flushes),
       max_log_file_size(options.max_log_file_size),
@@ -149,8 +149,8 @@ void ImmutableDBOptions::Dump(Logger* log) const {
                    create_missing_column_families);
   ROCKS_LOG_HEADER(log, "                             Options.db_log_dir: %s",
                    db_log_dir.c_str());
-  ROCKS_LOG_HEADER(log, "                                Options.wal_dir: %s",
-                   wal_dir.c_str());
+  ROCKS_LOG_HEADER(log, "                                Options.wal_path: %s",
+                   wal_path.c_str());
   ROCKS_LOG_HEADER(log, "               Options.table_cache_numshardbits: %d",
                    table_cache_numshardbits);
   ROCKS_LOG_HEADER(log,

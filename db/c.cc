@@ -2403,9 +2403,9 @@ void rocksdb_options_set_db_log_dir(
   opt->rep.db_log_dir = db_log_dir;
 }
 
-void rocksdb_options_set_wal_dir(
+void rocksdb_options_set_wal_path(
     rocksdb_options_t* opt, const char* v) {
-  opt->rep.wal_dir = v;
+  opt->rep.wal_path = v;
 }
 
 void rocksdb_options_set_WAL_ttl_seconds(rocksdb_options_t* opt, uint64_t ttl) {

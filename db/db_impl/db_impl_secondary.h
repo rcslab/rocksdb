@@ -211,11 +211,6 @@ class DBImplSecondary : public DBImpl {
   Status TryCatchUpWithPrimary() override;
 
 
-  // Try to find log reader using log_number from log_readers_ map, initialize
-  // if it doesn't exist
-  Status MaybeInitLogReader(uint64_t log_number,
-                            log::FragmentBufferedReader** log_reader);
-
   // Check if all live files exist on file system and that their file sizes
   // matche to the in-memory records. It is possible that some live files may
   // have been deleted by the primary. In this case, CheckConsistency() does

@@ -155,16 +155,6 @@ void DBImpl::FindObsoleteFiles(JobContext* job_context, bool force,
       }
     }
 
-    // Add log files in wal_dir
-    if (immutable_db_options_.wal_dir != dbname_) {
-      std::vector<std::string> log_files;
-      env_->GetChildren(immutable_db_options_.wal_dir,
-                        &log_files);  // Ignore errors
-      for (const std::string& log_file : log_files) {
-        job_context->full_scan_candidate_files.emplace_back(
-            log_file, immutable_db_options_.wal_dir);
-      }
-    }
     // Add info log files in db_log_dir
     if (!immutable_db_options_.db_log_dir.empty() &&
         immutable_db_options_.db_log_dir != dbname_) {
@@ -330,12 +320,6 @@ void DBImpl::PurgeObsoleteFiles(JobContext& state, bool schedule_only) {
     file.DeleteMetadata();
   }
 
-  for (auto file_num : state.log_delete_files) {
-    if (file_num > 0) {
-      candidate_files.emplace_back(LogFileName(file_num),
-                                   immutable_db_options_.wal_dir);
-    }
-  }
   for (const auto& filename : state.manifest_delete_files) {
     candidate_files.emplace_back(filename, dbname_);
   }
@@ -471,8 +455,7 @@ void DBImpl::PurgeObsoleteFiles(JobContext& state, bool schedule_only) {
       fname = MakeTableFileName(candidate_file.file_path, number);
       dir_to_sync = candidate_file.file_path;
     } else {
-      dir_to_sync =
-          (type == kLogFile) ? immutable_db_options_.wal_dir : dbname_;
+      dir_to_sync = dbname_;
       fname = dir_to_sync +
               ((!dir_to_sync.empty() && dir_to_sync.back() == '/') ||
                        (!to_delete.empty() && to_delete.front() == '/')

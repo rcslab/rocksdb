@@ -377,12 +377,6 @@ void LDBCommand::OpenDB() {
       db_ = nullptr;
       return;
     }
-    if (options_.env->FileExists(options_.wal_dir).IsNotFound()) {
-      options_.wal_dir = db_path_;
-      fprintf(
-          stderr,
-          "wal_dir loaded from the option file doesn't exist. Ignore it.\n");
-    }
 
     // If merge operator is not set, set a string append operator. There is
     // no harm doing it.
@@ -3162,23 +3156,6 @@ void DBFileDumperCommand::DoCommand() {
     std::cout << std::endl;
   }
   std::cout << std::endl;
-
-  std::cout << "Write Ahead Log Files" << std::endl;
-  std::cout << "==============================" << std::endl;
-  ROCKSDB_NAMESPACE::VectorLogPtr wal_files;
-  s = db_->GetSortedWalFiles(wal_files);
-  if (!s.ok()) {
-    std::cerr << "Error when getting WAL files" << std::endl;
-  } else {
-    for (auto& wal : wal_files) {
-      // TODO(qyang): option.wal_dir should be passed into ldb command
-      std::string filename = db_->GetOptions().wal_dir + wal->PathName();
-      std::cout << filename << std::endl;
-      // TODO(myabandeh): allow configuring is_write_commited
-      DumpWalFile(options_, filename, true, true, true /* is_write_commited */,
-                  &exec_state_);
-    }
-  }
 }
 
 void WriteExternalSstFilesCommand::Help(std::string& ret) {

@@ -533,7 +533,7 @@ Status DBImpl::CloseHelper() {
       ROCKS_LOG_WARN(
           immutable_db_options_.info_log,
           "Unable to Sync WAL file %s with error -- %s",
-          LogFileName(immutable_db_options_.wal_dir, log_number).c_str(),
+          LogFileName("<INVALID>", log_number).c_str(),
           s.ToString().c_str());
       // Retain the first error
       if (ret.ok()) {
@@ -620,11 +620,6 @@ void DBImpl::MaybeIgnoreError(Status* s) const {
 }
 
 const Status DBImpl::CreateArchivalDirectory() {
-  if (immutable_db_options_.wal_ttl_seconds > 0 ||
-      immutable_db_options_.wal_size_limit_mb > 0) {
-    std::string archivalPath = ArchivalDirectory(immutable_db_options_.wal_dir);
-    return env_->CreateDirIfMissing(archivalPath);
-  }
   return Status::OK();
 }
 
@@ -3499,49 +3494,6 @@ Status DestroyDB(const std::string& dbname, const Options& options,
         }
         env->DeleteDir(path);
       }
-    }
-
-    std::vector<std::string> walDirFiles;
-    std::string archivedir = ArchivalDirectory(dbname);
-    bool wal_dir_exists = false;
-    if (dbname != soptions.wal_dir) {
-      wal_dir_exists = env->GetChildren(soptions.wal_dir, &walDirFiles).ok();
-      archivedir = ArchivalDirectory(soptions.wal_dir);
-    }
-
-    // Archive dir may be inside wal dir or dbname and should be
-    // processed and removed before those otherwise we have issues
-    // removing them
-    std::vector<std::string> archiveFiles;
-    if (env->GetChildren(archivedir, &archiveFiles).ok()) {
-      // Delete archival files.
-      for (const auto& file : archiveFiles) {
-        if (ParseFileName(file, &number, &type) && type == kLogFile) {
-          Status del =
-              DeleteDBFile(&soptions, archivedir + "/" + file, archivedir,
-                           /*force_bg=*/false, /*force_fg=*/false);
-          if (result.ok() && !del.ok()) {
-            result = del;
-          }
-        }
-      }
-      env->DeleteDir(archivedir);
-    }
-
-    // Delete log files in the WAL dir
-    if (wal_dir_exists) {
-      for (const auto& file : walDirFiles) {
-        if (ParseFileName(file, &number, &type) && type == kLogFile) {
-          Status del =
-              DeleteDBFile(&soptions, LogFileName(soptions.wal_dir, number),
-                           soptions.wal_dir, /*force_bg=*/false,
-                           /*force_fg=*/!false);
-          if (result.ok() && !del.ok()) {
-            result = del;
-          }
-        }
-      }
-      env->DeleteDir(soptions.wal_dir);
     }
 
     env->UnlockFile(lock);  // Ignore error since state is already gone
