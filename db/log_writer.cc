@@ -18,11 +18,11 @@
 namespace ROCKSDB_NAMESPACE {
 namespace log {
 
-Writer::Writer(std::unique_ptr<WritableFileWriter>&& dest, uint64_t log_number,
+Writer::Writer(std::unique_ptr<WritableFileWriter>&& dest, std::string log_fname,
                bool recycle_log_files, bool manual_flush)
     : dest_(std::move(dest)),
       block_offset_(0),
-      log_number_(log_number),
+      log_fname_(log_fname),
       recycle_log_files_(recycle_log_files),
       manual_flush_(manual_flush) {
   for (int i = 0; i <= kMaxRecordType; i++) {
@@ -140,7 +140,7 @@ IOStatus Writer::EmitPhysicalRecord(RecordType t, const char* ptr, size_t n) {
     // ~4 billion logs ago, but that is effectively impossible, and
     // even if it were we'dbe far more likely to see a false positive
     // on the 32-bit CRC.
-    EncodeFixed32(buf + 7, static_cast<uint32_t>(log_number_));
+    EncodeFixed32(buf + 7, static_cast<uint32_t>(0));
     crc = crc32c::Extend(crc, buf + 7, 4);
   }
 

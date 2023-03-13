@@ -3872,7 +3872,7 @@ Status VersionSet::ProcessManifestWrites(
             std::move(descriptor_file), descriptor_fname, opt_file_opts, env_,
             nullptr, db_options_->listeners));
         descriptor_log_.reset(
-            new log::Writer(std::move(file_writer), 0, false));
+            new log::Writer(std::move(file_writer), db_options_->wal_path, false));
         s = WriteCurrentStateToManifest(curr_state, descriptor_log_.get());
       }
     }

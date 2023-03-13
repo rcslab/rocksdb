@@ -274,7 +274,7 @@ class CompactionJobTest : public testing::Test {
     std::unique_ptr<WritableFileWriter> file_writer(new WritableFileWriter(
         NewLegacyWritableFileWrapper(std::move(file)), manifest, env_options_));
     {
-      log::Writer log(std::move(file_writer), 0, false);
+      log::Writer log(std::move(file_writer), immutable_db_options_.wal_path, false);
       std::string record;
       new_db.EncodeTo(&record);
       s = log.AddRecord(record);

@@ -72,7 +72,7 @@ class Writer {
   // "*dest" must be initially empty.
   // "*dest" must remain live while this Writer is in use.
   explicit Writer(std::unique_ptr<WritableFileWriter>&& dest,
-                  uint64_t log_number, bool recycle_log_files,
+                  std::string log_fname, bool recycle_log_files,
                   bool manual_flush = false);
   // No copying allowed
   Writer(const Writer&) = delete;
@@ -85,7 +85,7 @@ class Writer {
   WritableFileWriter* file() { return dest_.get(); }
   const WritableFileWriter* file() const { return dest_.get(); }
 
-  uint64_t get_log_number() const { return log_number_; }
+  std::string get_log_fname() const { return log_fname_; }
 
   IOStatus WriteBuffer();
 
@@ -96,7 +96,7 @@ class Writer {
  private:
   std::unique_ptr<WritableFileWriter> dest_;
   size_t block_offset_;       // Current offset in block
-  uint64_t log_number_;
+  std::string log_fname_;
   bool recycle_log_files_;
 
   // crc32c values for all supported record types.  These are

@@ -527,13 +527,13 @@ Status DBImpl::CloseHelper() {
     delete l;
   }
   for (auto& log : logs_) {
-    uint64_t log_number = log.writer->get_log_number();
+    std::string log_fname = log.writer->get_log_fname();
     Status s = log.ClearWriter();
     if (!s.ok()) {
       ROCKS_LOG_WARN(
           immutable_db_options_.info_log,
           "Unable to Sync WAL file %s with error -- %s",
-          LogFileName("<INVALID>", log_number).c_str(),
+          log_fname.c_str(),
           s.ToString().c_str());
       // Retain the first error
       if (ret.ok()) {
