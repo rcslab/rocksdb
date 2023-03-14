@@ -81,24 +81,16 @@ struct MemTableInfo;
 // Class to maintain directories for all database paths other than main one.
 class Directories {
  public:
-  IOStatus SetDirectories(FileSystem* fs, const std::string& dbname,
-                          const std::vector<DbPath>& data_paths);
+  IOStatus SetDirectories(FileSystem* fs, const std::string& dbname);
 
   FSDirectory* GetDataDir(size_t path_id) const {
-    assert(path_id < data_dirs_.size());
-    FSDirectory* ret_dir = data_dirs_[path_id].get();
-    if (ret_dir == nullptr) {
-      // Should use db_dir_
       return db_dir_.get();
-    }
-    return ret_dir;
   }
 
   FSDirectory* GetDbDir() { return db_dir_.get(); }
 
  private:
   std::unique_ptr<FSDirectory> db_dir_;
-  std::vector<std::unique_ptr<FSDirectory>> data_dirs_;
 };
 
 // While DB is the public interface of RocksDB, and DBImpl is the actual

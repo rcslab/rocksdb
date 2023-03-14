@@ -1359,38 +1359,8 @@ Env::WriteLifeTimeHint ColumnFamilyData::CalculateSSTWriteHint(int level) {
                             static_cast<int>(Env::WLTH_MEDIUM));
 }
 
-Status ColumnFamilyData::AddDirectories(
-    std::map<std::string, std::shared_ptr<FSDirectory>>* created_dirs) {
-  Status s;
-  assert(created_dirs != nullptr);
-  assert(data_dirs_.empty());
-  for (auto& p : ioptions_.cf_paths) {
-    auto existing_dir = created_dirs->find(p.path);
-
-    if (existing_dir == created_dirs->end()) {
-      std::unique_ptr<FSDirectory> path_directory;
-      s = DBImpl::CreateAndNewDirectory(ioptions_.fs, p.path, &path_directory);
-      if (!s.ok()) {
-        return s;
-      }
-      assert(path_directory != nullptr);
-      data_dirs_.emplace_back(path_directory.release());
-      (*created_dirs)[p.path] = data_dirs_.back();
-    } else {
-      data_dirs_.emplace_back(existing_dir->second);
-    }
-  }
-  assert(data_dirs_.size() == ioptions_.cf_paths.size());
-  return s;
-}
-
 FSDirectory* ColumnFamilyData::GetDataDir(size_t path_id) const {
-  if (data_dirs_.empty()) {
     return nullptr;
-  }
-
-  assert(path_id < data_dirs_.size());
-  return data_dirs_[path_id].get();
 }
 
 ColumnFamilySet::ColumnFamilySet(const std::string& dbname,

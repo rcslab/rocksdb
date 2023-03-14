@@ -292,30 +292,11 @@ IOStatus DBImpl::CreateAndNewDirectory(
   return fs->NewDirectory(dirname, IOOptions(), directory, nullptr);
 }
 
-IOStatus Directories::SetDirectories(FileSystem* fs, const std::string& dbname,
-                                     const std::vector<DbPath>& data_paths) {
-  IOStatus io_s = DBImpl::CreateAndNewDirectory(fs, dbname, &db_dir_);
-  if (!io_s.ok()) {
-    return io_s;
-  }
 
-  data_dirs_.clear();
-  for (auto& p : data_paths) {
-    const std::string db_path = p.path;
-    if (db_path == dbname) {
-      data_dirs_.emplace_back(nullptr);
-    } else {
-      std::unique_ptr<FSDirectory> path_directory;
-      io_s = DBImpl::CreateAndNewDirectory(fs, db_path, &path_directory);
-      if (!io_s.ok()) {
-        return io_s;
-      }
-      data_dirs_.emplace_back(path_directory.release());
-    }
-  }
-  assert(data_dirs_.size() == data_paths.size());
-  return IOStatus::OK();
+IOStatus Directories::SetDirectories(FileSystem* fs, const std::string& dbname) {
+  return DBImpl::CreateAndNewDirectory(fs, dbname, &db_dir_);
 }
+
 
 Status DBImpl::Recover(
   const std::vector<ColumnFamilyDescriptor>& column_families, bool read_only,
@@ -325,8 +306,7 @@ Status DBImpl::Recover(
 
   assert(db_lock_ == nullptr);
   if (!read_only) {
-    Status s = directories_.SetDirectories(fs_.get(), dbname_,
-                                           immutable_db_options_.db_paths);
+    Status s = directories_.SetDirectories(fs_.get(), dbname_);
     if (!s.ok()) {
       return s;
     }
@@ -431,15 +411,6 @@ Status DBImpl::Recover(
 
   if (immutable_db_options_.paranoid_checks && s.ok()) {
     s = CheckConsistency();
-  }
-  if (s.ok() && !read_only) {
-    std::map<std::string, std::shared_ptr<FSDirectory>> created_dirs;
-    for (auto cfd : *versions_->GetColumnFamilySet()) {
-      s = cfd->AddDirectories(&created_dirs);
-      if (!s.ok()) {
-        return s;
-      }
-    }
   }
   // DB mutex is already held
   if (s.ok() && immutable_db_options_.persist_stats_to_disk) {
