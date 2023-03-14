@@ -323,7 +323,6 @@ Status DBImpl::Recover(
   uint64_t* recovered_seq) {
   mutex_.AssertHeld();
 
-  bool is_new_db = false;
   assert(db_lock_ == nullptr);
   if (!read_only) {
     Status s = directories_.SetDirectories(fs_.get(), dbname_,
@@ -342,7 +341,6 @@ Status DBImpl::Recover(
     if (s.IsNotFound()) {
       if (immutable_db_options_.create_if_missing) {
         s = NewDB();
-        is_new_db = true;
         if (!s.ok()) {
           return s;
         }
