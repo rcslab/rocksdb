@@ -26,8 +26,6 @@ extern "C" {
 #include <fcntl.h>
 #include <unistd.h>
 
-#define DEFAULT_WAL_STRIPE "/dev/wal"
-
 namespace {
   constexpr size_t WAL_SIZE = 64ULL << 20;
   constexpr uint64_t oid = 1;
@@ -43,7 +41,7 @@ namespace {
 	  .attr_flags = SLSATTR_IGNUNLINKED,
       };
 
-      ssd_ = open(DEFAULT_WAL_STRIPE, O_RDWR | O_DIRECT);
+      ssd_ = slsfs_create_wal("wal", O_RDWR, 0660, 1024 * 1024 * 1024);
       if (ssd_ < 0) {
         perror("open(ssd_)");
         throw 42;
