@@ -134,7 +134,7 @@ Status DBImpl::PromoteL0(ColumnFamilyHandle* column_family, int target_level) {
     }
 
     status = versions_->LogAndApply(cfd, *cfd->GetLatestMutableCFOptions(),
-                                    &edit, &mutex_, directories_.GetDbDir());
+                                    &edit, &mutex_, db_dir_.get());
     if (status.ok()) {
       InstallSuperVersionAndScheduleWork(cfd,
                                          &job_context.superversion_contexts[0],

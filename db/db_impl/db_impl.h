@@ -78,21 +78,6 @@ struct JobContext;
 struct ExternalSstFileInfo;
 struct MemTableInfo;
 
-// Class to maintain directories for all database paths other than main one.
-class Directories {
- public:
-  IOStatus SetDirectories(FileSystem* fs, const std::string& dbname);
-
-  FSDirectory* GetDataDir(size_t path_id) const {
-      return db_dir_.get();
-  }
-
-  FSDirectory* GetDbDir() { return db_dir_.get(); }
-
- private:
-  std::unique_ptr<FSDirectory> db_dir_;
-};
-
 // While DB is the public interface of RocksDB, and DBImpl is the actual
 // class implementing it. It's the entrance of the core RocksdB engine.
 // All other DB implementations, e.g. TransactionDB, BlobDB, etc, wrap a
@@ -949,6 +934,7 @@ class DBImpl : public DB {
 
  protected:
   const std::string dbname_;
+  std::unique_ptr<FSDirectory> db_dir_;
   std::string db_id_;
   std::unique_ptr<VersionSet> versions_;
   // Flag to check whether we allocated and own the info log file
@@ -1616,8 +1602,6 @@ class DBImpl : public DB {
 
   uint64_t GetMaxTotalWalSize() const;
 
-  FSDirectory* GetDataDir(ColumnFamilyData* cfd, size_t path_id) const;
-
   Status CloseHelper();
 
   void WaitForBackgroundWork();
@@ -1839,8 +1823,6 @@ class DBImpl : public DB {
   std::map<std::string, uint64_t> stats_slice_;
 
   bool stats_slice_initialized_ = false;
-
-  Directories directories_;
 
   WriteBufferManager* write_buffer_manager_;
 

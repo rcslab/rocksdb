@@ -1359,10 +1359,6 @@ Env::WriteLifeTimeHint ColumnFamilyData::CalculateSSTWriteHint(int level) {
                             static_cast<int>(Env::WLTH_MEDIUM));
 }
 
-FSDirectory* ColumnFamilyData::GetDataDir(size_t path_id) const {
-    return nullptr;
-}
-
 ColumnFamilySet::ColumnFamilySet(const std::string& dbname,
                                  const ImmutableDBOptions* db_options,
                                  const FileOptions& file_options,

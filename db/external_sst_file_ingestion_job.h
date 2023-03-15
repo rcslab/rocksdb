@@ -21,8 +21,6 @@
 
 namespace ROCKSDB_NAMESPACE {
 
-class Directories;
-
 struct IngestedFileInfo {
   // External file path
   std::string external_file_path;
@@ -72,7 +70,7 @@ class ExternalSstFileIngestionJob {
       const ImmutableDBOptions& db_options, const EnvOptions& env_options,
       SnapshotList* db_snapshots,
       const IngestExternalFileOptions& ingestion_options,
-      Directories* directories, EventLogger* event_logger)
+      FSDirectory* db_dir, EventLogger* event_logger)
       : env_(env),
         fs_(db_options.fs.get()),
         versions_(versions),
@@ -81,11 +79,10 @@ class ExternalSstFileIngestionJob {
         env_options_(env_options),
         db_snapshots_(db_snapshots),
         ingestion_options_(ingestion_options),
-        directories_(directories),
+        db_dir_(db_dir),
         event_logger_(event_logger),
         job_start_time_(env_->NowMicros()),
         consumed_seqno_count_(0) {
-    assert(directories != nullptr);
   }
 
   // Prepare the job by copying external files into the DB.
@@ -167,7 +164,7 @@ class ExternalSstFileIngestionJob {
   SnapshotList* db_snapshots_;
   autovector<IngestedFileInfo> files_to_ingest_;
   const IngestExternalFileOptions& ingestion_options_;
-  Directories* directories_;
+  FSDirectory *db_dir_;
   EventLogger* event_logger_;
   VersionEdit edit_;
   uint64_t job_start_time_;

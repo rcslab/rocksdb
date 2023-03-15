@@ -268,7 +268,7 @@ Status DBImpl::NewDB() {
   }
   if (s.ok()) {
     // Make "CURRENT" file that points to the new manifest file.
-    s = SetCurrentFile(fs_.get(), dbname_, 1, directories_.GetDbDir());
+    s = SetCurrentFile(fs_.get(), dbname_, 1, db_dir_.get());
   } else {
     fs_->DeleteFile(manifest, IOOptions(), nullptr);
   }
@@ -292,12 +292,6 @@ IOStatus DBImpl::CreateAndNewDirectory(
   return fs->NewDirectory(dirname, IOOptions(), directory, nullptr);
 }
 
-
-IOStatus Directories::SetDirectories(FileSystem* fs, const std::string& dbname) {
-  return DBImpl::CreateAndNewDirectory(fs, dbname, &db_dir_);
-}
-
-
 Status DBImpl::Recover(
   const std::vector<ColumnFamilyDescriptor>& column_families, bool read_only,
   bool error_if_log_file_exist, bool error_if_data_exists_in_logs,
@@ -306,7 +300,7 @@ Status DBImpl::Recover(
 
   assert(db_lock_ == nullptr);
   if (!read_only) {
-    Status s = directories_.SetDirectories(fs_.get(), dbname_);
+    Status s = DBImpl::CreateAndNewDirectory(fs_.get(), dbname_, &db_dir_);
     if (!s.ok()) {
       return s;
     }
@@ -826,7 +820,7 @@ Status DBImpl::Open(const DBOptions& db_options, const std::string& dbname,
       }
 
       impl->DeleteObsoleteFiles();
-      s = impl->directories_.GetDbDir()->Fsync(IOOptions(), nullptr);
+      s = impl->db_dir_.get()->Fsync(IOOptions(), nullptr);
     }
   }
   if (s.ok() && impl->immutable_db_options_.persist_stats_to_disk) {

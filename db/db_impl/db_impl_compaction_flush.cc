@@ -147,8 +147,8 @@ Status DBImpl::FlushMemTableToOutputFile(
       dbname_, cfd, immutable_db_options_, mutable_cf_options,
       nullptr /* memtable_id */, file_options_for_compaction_, versions_.get(),
       &mutex_, &shutting_down_, snapshot_seqs, earliest_write_conflict_snapshot,
-      snapshot_checker, job_context, log_buffer, directories_.GetDbDir(),
-      GetDataDir(cfd, 0U),
+      snapshot_checker, job_context, log_buffer, db_dir_.get(),
+      db_dir_.get(),
       GetCompressionFlush(*cfd->ioptions(), mutable_cf_options), stats_,
       &event_logger_, mutable_cf_options.report_bg_io_stats,
       true /* sync_output_directory */, true /* write_manifest */, thread_pri);
@@ -313,7 +313,7 @@ Status DBImpl::AtomicFlushMemTablesToOutputFiles(
   all_mutable_cf_options.reserve(num_cfs);
   for (int i = 0; i < num_cfs; ++i) {
     auto cfd = cfds[i];
-    FSDirectory* data_dir = GetDataDir(cfd, 0U);
+    FSDirectory* data_dir = db_dir_.get();
     const std::string& curr_path = cfd->ioptions()->cf_paths[0].path;
 
     // Add to distinct output directories if eligible. Use linear search. Since
@@ -338,7 +338,7 @@ Status DBImpl::AtomicFlushMemTablesToOutputFiles(
         dbname_, cfd, immutable_db_options_, mutable_cf_options,
         max_memtable_id, file_options_for_compaction_, versions_.get(), &mutex_,
         &shutting_down_, snapshot_seqs, earliest_write_conflict_snapshot,
-        snapshot_checker, job_context, log_buffer, directories_.GetDbDir(),
+        snapshot_checker, job_context, log_buffer, db_dir_.get(),
         data_dir, GetCompressionFlush(*cfd->ioptions(), mutable_cf_options),
         stats_, &event_logger_, mutable_cf_options.report_bg_io_stats,
         false /* sync_output_directory */, false /* write_manifest */,
@@ -520,7 +520,7 @@ Status DBImpl::AtomicFlushMemTablesToOutputFiles(
     s = InstallMemtableAtomicFlushResults(
         nullptr /* imm_lists */, tmp_cfds, mutable_cf_options_list, mems_list,
         versions_.get(), &mutex_, tmp_file_meta,
-        &job_context->memtables_to_free, directories_.GetDbDir(), log_buffer);
+        &job_context->memtables_to_free, db_dir_.get(), log_buffer);
   }
 
   if (s.ok()) {
@@ -1022,8 +1022,8 @@ Status DBImpl::CompactFilesImpl(
   CompactionJob compaction_job(
       job_context->job_id, c.get(), immutable_db_options_,
       file_options_for_compaction_, versions_.get(), &shutting_down_,
-      preserve_deletes_seqnum_.load(), log_buffer, directories_.GetDbDir(),
-      GetDataDir(c->column_family_data(), c->output_path_id()), stats_, &mutex_,
+      preserve_deletes_seqnum_.load(), log_buffer, db_dir_.get(),
+      db_dir_.get(), stats_, &mutex_,
       &error_handler_, snapshot_seqs, earliest_write_conflict_snapshot,
       snapshot_checker, table_cache_, &event_logger_,
       c->mutable_cf_options()->paranoid_file_checks,
@@ -1318,7 +1318,7 @@ Status DBImpl::ReFitLevel(ColumnFamilyData* cfd, int level, int target_level) {
                     edit.DebugString().data());
 
     status = versions_->LogAndApply(cfd, mutable_cf_options, &edit, &mutex_,
-                                    directories_.GetDbDir());
+                                    db_dir_.get());
     InstallSuperVersionAndScheduleWork(cfd, &sv_context, mutable_cf_options);
 
     ROCKS_LOG_DEBUG(immutable_db_options_.info_log, "[%s] LogAndApply: %s\n",
@@ -2688,7 +2688,7 @@ Status DBImpl::BackgroundCompaction(bool* made_progress,
     versions_->SetIOStatusOK();
     status = versions_->LogAndApply(c->column_family_data(),
                                     *c->mutable_cf_options(), c->edit(),
-                                    &mutex_, directories_.GetDbDir());
+                                    &mutex_, db_dir_.get());
     io_s = versions_->io_status();
     InstallSuperVersionAndScheduleWork(c->column_family_data(),
                                        &job_context->superversion_contexts[0],
@@ -2746,7 +2746,7 @@ Status DBImpl::BackgroundCompaction(bool* made_progress,
     versions_->SetIOStatusOK();
     status = versions_->LogAndApply(c->column_family_data(),
                                     *c->mutable_cf_options(), c->edit(),
-                                    &mutex_, directories_.GetDbDir());
+                                    &mutex_, db_dir_.get());
     io_s = versions_->io_status();
     // Use latest MutableCFOptions
     InstallSuperVersionAndScheduleWork(c->column_family_data(),
@@ -2813,8 +2813,8 @@ Status DBImpl::BackgroundCompaction(bool* made_progress,
     CompactionJob compaction_job(
         job_context->job_id, c.get(), immutable_db_options_,
         file_options_for_compaction_, versions_.get(), &shutting_down_,
-        preserve_deletes_seqnum_.load(), log_buffer, directories_.GetDbDir(),
-        GetDataDir(c->column_family_data(), c->output_path_id()), stats_,
+        preserve_deletes_seqnum_.load(), log_buffer, db_dir_.get(),
+        db_dir_.get(), stats_,
         &mutex_, &error_handler_, snapshot_seqs,
         earliest_write_conflict_snapshot, snapshot_checker, table_cache_,
         &event_logger_, c->mutable_cf_options()->paranoid_file_checks,

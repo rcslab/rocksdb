@@ -497,8 +497,6 @@ class ColumnFamilyData {
 
   Env::WriteLifeTimeHint CalculateSSTWriteHint(int level);
 
-  FSDirectory* GetDataDir(size_t path_id) const;
-
   ThreadLocalPtr* TEST_GetLocalSV() { return local_sv_.get(); }
 
  private:

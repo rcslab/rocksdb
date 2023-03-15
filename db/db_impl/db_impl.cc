@@ -885,15 +885,6 @@ void DBImpl::ScheduleBgLogWriterClose(JobContext* job_context) {
   }
 }
 
-FSDirectory* DBImpl::GetDataDir(ColumnFamilyData* cfd, size_t path_id) const {
-  assert(cfd);
-  FSDirectory* ret_dir = cfd->GetDataDir(path_id);
-  if (ret_dir == nullptr) {
-    return directories_.GetDataDir(path_id);
-  }
-  return ret_dir;
-}
-
 Status DBImpl::SetOptions(
     ColumnFamilyHandle* column_family,
     const std::unordered_map<std::string, std::string>& options_map) {
@@ -923,7 +914,7 @@ Status DBImpl::SetOptions(
       // Append new version to recompute compaction score.
       VersionEdit dummy_edit;
       versions_->LogAndApply(cfd, new_options, &dummy_edit, &mutex_,
-                             directories_.GetDbDir());
+                             db_dir_.get());
       // Trigger possible flush/compactions. This has to be before we persist
       // options to file, otherwise there will be a deadlock with writer
       // thread.
@@ -2258,7 +2249,7 @@ Status DBImpl::CreateColumnFamilyImpl(const ColumnFamilyOptions& cf_options,
       // LogAndApply will both write the creation in MANIFEST and create
       // ColumnFamilyData object
       s = versions_->LogAndApply(nullptr, MutableCFOptions(cf_options), &edit,
-                                 &mutex_, directories_.GetDbDir(), false,
+                                 &mutex_, db_dir_.get(), false,
                                  &cf_options);
       write_thread_.ExitUnbatched(&w);
     }
@@ -3128,7 +3119,7 @@ Status DBImpl::DeleteFile(std::string name) {
     edit.SetColumnFamily(cfd->GetID());
     edit.DeleteFile(level, number);
     status = versions_->LogAndApply(cfd, *cfd->GetLatestMutableCFOptions(),
-                                    &edit, &mutex_, directories_.GetDbDir());
+                                    &edit, &mutex_, db_dir_.get());
     if (status.ok()) {
       InstallSuperVersionAndScheduleWork(cfd,
                                          &job_context.superversion_contexts[0],
@@ -3213,7 +3204,7 @@ Status DBImpl::DeleteFilesInRanges(ColumnFamilyHandle* column_family,
     }
     input_version->Ref();
     status = versions_->LogAndApply(cfd, *cfd->GetLatestMutableCFOptions(),
-                                    &edit, &mutex_, directories_.GetDbDir());
+                                    &edit, &mutex_, db_dir_.get());
     if (status.ok()) {
       InstallSuperVersionAndScheduleWork(cfd,
                                          &job_context.superversion_contexts[0],
@@ -3885,7 +3876,7 @@ Status DBImpl::IngestExternalFiles(
     auto* cfd = static_cast<ColumnFamilyHandleImpl*>(arg.column_family)->cfd();
     ingestion_jobs.emplace_back(
         env_, versions_.get(), cfd, immutable_db_options_, file_options_,
-        &snapshots_, arg.options, &directories_, &event_logger_);
+        &snapshots_, arg.options, db_dir_.get(), &event_logger_);
   }
   std::vector<std::pair<bool, Status>> exec_results;
   for (size_t i = 0; i != num_cfs; ++i) {
@@ -4066,7 +4057,7 @@ Status DBImpl::IngestExternalFiles(
       }
       status =
           versions_->LogAndApply(cfds_to_commit, mutable_cf_options_list,
-                                 edit_lists, &mutex_, directories_.GetDbDir());
+                                 edit_lists, &mutex_, db_dir_.get());
     }
 
     if (status.ok()) {
@@ -4175,7 +4166,7 @@ Status DBImpl::CreateColumnFamilyWithImport(
       next_file_number = versions_->FetchAddFileNumber(metadata.files.size());
       auto cf_options = cfd->GetLatestMutableCFOptions();
       status = versions_->LogAndApply(cfd, *cf_options, &dummy_edit, &mutex_,
-                                      directories_.GetDbDir());
+                                      db_dir_.get());
       if (status.ok()) {
         InstallSuperVersionAndScheduleWork(cfd, &dummy_sv_ctx, *cf_options);
       }
@@ -4211,7 +4202,7 @@ Status DBImpl::CreateColumnFamilyWithImport(
       if (status.ok()) {
         auto cf_options = cfd->GetLatestMutableCFOptions();
         status = versions_->LogAndApply(cfd, *cf_options, import_job.edit(),
-                                        &mutex_, directories_.GetDbDir());
+                                        &mutex_, db_dir_.get());
         if (status.ok()) {
           InstallSuperVersionAndScheduleWork(cfd, &sv_context, *cf_options);
         }
@@ -4412,7 +4403,7 @@ Status DBImpl::ReserveFileNumbersBeforeIngestion(
   // and this will overwrite the external file. To protect the external
   // file, we have to make sure the file number will never being reused.
   s = versions_->LogAndApply(cfd, *cf_options, &dummy_edit, &mutex_,
-                             directories_.GetDbDir());
+                             db_dir_.get());
   if (s.ok()) {
     InstallSuperVersionAndScheduleWork(cfd, &dummy_sv_ctx, *cf_options);
   }
