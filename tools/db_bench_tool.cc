@@ -2939,6 +2939,9 @@ class Benchmark {
         fresh_db = true;
         method = &Benchmark::WriteSeq;
       } else if (name == "fillbatch") {
+        num_threads = 1;
+        write_options_.sync = false;
+        write_options_.disableWAL = true;
         fresh_db = true;
         entries_per_batch_ = 1000;
         method = &Benchmark::WriteSeq;
@@ -3269,6 +3272,8 @@ class Benchmark {
               secondary_db_updates_);
     }
 #endif  // ROCKSDB_LITE
+
+    _Exit(0);
   }
 
  private:
@@ -5431,7 +5436,7 @@ class Benchmark {
     query.Initiate(ratio);
 
     // the limit of qps initiation
-    if (FLAGS_sine_a != 0 || FLAGS_sine_d != 0) {
+    if (false && (FLAGS_sine_a != 0 || FLAGS_sine_d != 0)) {
       thread->shared->read_rate_limiter.reset(NewGenericRateLimiter(
           static_cast<int64_t>(read_rate), 100000 /* refill_period_us */, 10 /* fairness */,
           RateLimiter::Mode::kReadsOnly));
@@ -5477,7 +5482,7 @@ class Benchmark {
         usecs_since_last = 0;
       }
 
-      if (usecs_since_last >
+      if (false && usecs_since_last >
           (FLAGS_sine_mix_rate_interval_milliseconds * uint64_t{1000})) {
         double usecs_since_start =
             static_cast<double>(now - thread->stats.GetStart());
@@ -5704,8 +5709,8 @@ class Benchmark {
         assert(iter_to_use->status().ok());
       }
 
-      if (thread->shared->read_rate_limiter.get() != nullptr &&
-          read % 256 == 255) {
+      if (thread->shared->read_rate_limiter.get() != nullptr
+          && read % 256 == 255) {
         thread->shared->read_rate_limiter->Request(
             256, Env::IO_HIGH, nullptr /* stats */, RateLimiter::OpType::kRead);
       }
