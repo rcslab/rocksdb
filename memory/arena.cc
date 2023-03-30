@@ -7,6 +7,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 
+#include <sys/param.h>
+
 #include "memory/arena.h"
 #ifndef OS_WIN
 #include <sys/mman.h>
@@ -25,6 +27,7 @@ namespace ROCKSDB_NAMESPACE {
 const size_t Arena::kInlineSize;
 #endif
 
+std::atomic<uint64_t> Arena::mapping_target_(0x700000000000);
 const size_t Arena::kMinBlockSize = 4096;
 const size_t Arena::kMaxBlockSize = 2u << 30;
 static const int kAlignUnit = alignof(max_align_t);
@@ -69,8 +72,14 @@ Arena::~Arena() {
     assert(tracker_->is_freed());
     tracker_->FreeMem();
   }
-  for (const auto& block : blocks_) {
-    delete[] block;
+  for (const auto& mmap_info : blocks_) {
+    if (mmap_info.addr_ == nullptr) {
+      continue;
+    }
+    int ret = munmap(mmap_info.addr_, mmap_info.length_);
+    if (ret != 0) {
+      // TODO(sdong): Better handling
+    }
   }
 
 #ifdef MAP_HUGETLB
@@ -91,7 +100,7 @@ char* Arena::AllocateFallback(size_t bytes, bool aligned) {
     ++irregular_block_num;
     // Object is more than a quarter of our block size.  Allocate it separately
     // to avoid wasting too much space in leftover bytes.
-    return AllocateNewBlock(bytes);
+    return AllocateRegion(bytes);
   }
 
   // We waste the remaining space in the current block.
@@ -105,7 +114,7 @@ char* Arena::AllocateFallback(size_t bytes, bool aligned) {
 #endif
   if (!block_head) {
     size = kBlockSize;
-    block_head = AllocateNewBlock(size);
+    block_head = AllocateRegion(size);
   }
   alloc_bytes_remaining_ = size - bytes;
 
@@ -153,6 +162,39 @@ char* Arena::AllocateFromHugePage(size_t bytes) {
 #endif
 }
 
+char* Arena::AllocateRegion(size_t bytes) {
+  // Reserve space in `blocks_` before calling `mmap`.
+  // Use `emplace_back()` instead of `reserve()` to let std::vector manage its
+  // own memory and do fewer reallocations.
+  //
+  // - If `emplace_back` throws, no memory leaks because we haven't called
+  //   `mmap` yet.
+  // - If `mmap` throws, no memory leaks because the vector will be cleaned up
+  //   via RAII.
+  blocks_.emplace_back(nullptr /* addr */, 0 /* length */);
+
+  if (bytes % PAGE_SIZE != 0)
+    bytes = bytes - (bytes % PAGE_SIZE) + PAGE_SIZE;
+
+  uint64_t target = std::atomic_fetch_add(&mapping_target_, bytes + PAGE_SIZE);
+
+  //printf("MAPPING %lx, 0x%lx\n", target, bytes);
+  void* addr = mmap((void *)target, bytes, (PROT_READ | PROT_WRITE),
+                    (MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED | MAP_EXCL), -1, 0);
+
+  if (addr == MAP_FAILED) {
+    perror("mmap");
+    return nullptr;
+  }
+
+  blocks_.back() = MmapInfo(addr, bytes);
+  blocks_memory_ += bytes;
+  if (tracker_ != nullptr) {
+    tracker_->Allocate(bytes);
+  }
+  return reinterpret_cast<char*>(addr);
+}
+
 char* Arena::AllocateAligned(size_t bytes, size_t huge_page_size,
                              Logger* logger) {
   assert((kAlignUnit & (kAlignUnit - 1)) ==
@@ -196,38 +238,6 @@ char* Arena::AllocateAligned(size_t bytes, size_t huge_page_size,
   }
   assert((reinterpret_cast<uintptr_t>(result) & (kAlignUnit - 1)) == 0);
   return result;
-}
-
-char* Arena::AllocateNewBlock(size_t block_bytes) {
-  // Reserve space in `blocks_` before allocating memory via new.
-  // Use `emplace_back()` instead of `reserve()` to let std::vector manage its
-  // own memory and do fewer reallocations.
-  //
-  // - If `emplace_back` throws, no memory leaks because we haven't called `new`
-  //   yet.
-  // - If `new` throws, no memory leaks because the vector will be cleaned up
-  //   via RAII.
-  blocks_.emplace_back(nullptr);
-
-  char* block = new char[block_bytes];
-  size_t allocated_size;
-#ifdef ROCKSDB_MALLOC_USABLE_SIZE
-  allocated_size = malloc_usable_size(block);
-#ifndef NDEBUG
-  // It's hard to predict what malloc_usable_size() returns.
-  // A callback can allow users to change the costed size.
-  std::pair<size_t*, size_t*> pair(&allocated_size, &block_bytes);
-  TEST_SYNC_POINT_CALLBACK("Arena::AllocateNewBlock:0", &pair);
-#endif  // NDEBUG
-#else
-  allocated_size = block_bytes;
-#endif  // ROCKSDB_MALLOC_USABLE_SIZE
-  blocks_memory_ += allocated_size;
-  if (tracker_ != nullptr) {
-    tracker_->Allocate(allocated_size);
-  }
-  blocks_.back() = block;
-  return block;
 }
 
 }  // namespace ROCKSDB_NAMESPACE

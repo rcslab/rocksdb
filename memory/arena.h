@@ -17,6 +17,7 @@
 #endif
 #include <assert.h>
 #include <stdint.h>
+#include <atomic>
 #include <cerrno>
 #include <cstddef>
 #include <vector>
@@ -82,12 +83,10 @@ class Arena : public Allocator {
   }
 
  private:
+  char* AllocateRegion(size_t bytes);
   char inline_block_[kInlineSize] __attribute__((__aligned__(alignof(max_align_t))));
   // Number of bytes allocated in one block
   const size_t kBlockSize;
-  // Array of new[] allocated memory blocks
-  typedef std::vector<char*> Blocks;
-  Blocks blocks_;
 
   struct MmapInfo {
     void* addr_;
@@ -95,6 +94,7 @@ class Arena : public Allocator {
 
     MmapInfo(void* addr, size_t length) : addr_(addr), length_(length) {}
   };
+  std::vector<MmapInfo> blocks_;
   std::vector<MmapInfo> huge_blocks_;
   size_t irregular_block_num = 0;
 
@@ -114,6 +114,7 @@ class Arena : public Allocator {
   char* AllocateFromHugePage(size_t bytes);
   char* AllocateFallback(size_t bytes, bool aligned);
   char* AllocateNewBlock(size_t block_bytes);
+  static std::atomic<uint64_t> mapping_target_;
 
   // Bytes of memory in blocks allocated so far
   size_t blocks_memory_ = 0;
