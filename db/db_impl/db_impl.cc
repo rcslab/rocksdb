@@ -523,6 +523,7 @@ Status DBImpl::CloseHelper() {
     mutex_.Lock();
   }
 
+#if 0
   for (auto l : logs_to_free_) {
     delete l;
   }
@@ -542,6 +543,7 @@ Status DBImpl::CloseHelper() {
     }
   }
   logs_.clear();
+#endif
 
   // Table cache may have table handles holding blocks from the block cache.
   // We need to release them before the block cache is destroyed. The block
