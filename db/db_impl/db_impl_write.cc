@@ -14,6 +14,12 @@
 #include "monitoring/perf_context_imp.h"
 #include "options/options_helper.h"
 #include "test_util/sync_point.h"
+ 
+extern "C" {
+#include <sls.h>
+}
+#include <fcntl.h>
+#include <unistd.h>
 
 namespace ROCKSDB_NAMESPACE {
 // Convenience methods
@@ -862,6 +868,24 @@ void DBImpl::MemTableInsertStatusCheck(const Status& status) {
     assert(!error_handler_.IsBGWorkStopped());
     error_handler_.SetBGError(status, BackgroundErrorReason::kMemTable);
     mutex_.Unlock();
+  }
+}
+
+void DBImpl::Checkpoint() {
+  autovector<ColumnFamilyData*> cfds;
+  for (auto cfd : *versions_->GetColumnFamilySet()) {
+    if (!cfd->IsDropped())
+      cfds.push_back(cfd);
+  }
+
+  uint64_t oid = immutable_db_options().sls_oid;
+  for (const auto cfd : cfds) {
+    cfd->Ref();
+    void *addr = cfd->mem()->arena().GetBlockAddr();
+    int error = sls_memsnap(oid, addr);
+    if (error != 0)
+	    throw 5;
+    cfd->UnrefAndTryDelete();
   }
 }
 

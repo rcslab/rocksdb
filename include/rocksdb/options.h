@@ -518,6 +518,9 @@ struct DBOptions {
   // This specifies the amount of writes needed to trigger a checkpoint.
   size_t checkpoint_threshold = 0;
 
+  // This specifies the OID of the SLS partition in which we checkpoint.
+  uint64_t sls_oid = 0;
+
   // The periodicity when obsolete files get deleted. The default
   // value is 6 hours. The files that get out of scope by compaction
   // process will still get automatically delete on every compaction,

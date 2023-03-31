@@ -82,6 +82,8 @@ class Arena : public Allocator {
     return blocks_.empty();
   }
 
+  void *GetBlockAddr() const { return blocks_.back().addr_; }
+
  private:
   char* AllocateRegion(size_t bytes);
   char inline_block_[kInlineSize] __attribute__((__aligned__(alignof(max_align_t))));

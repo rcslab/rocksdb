@@ -1452,7 +1452,7 @@ class DBImpl : public DB {
     }
   }
 
-  inline void Checkpoint() { printf("Checktpoint\n"); total_log_size_ = 0;}
+  void Checkpoint();
 
   // REQUIRES: mutex locked and in write thread.
   void AssignAtomicFlushSeq(const autovector<ColumnFamilyData*>& cfds);

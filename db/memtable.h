@@ -425,6 +425,8 @@ class MemTable {
 
   uint64_t GetID() const { return id_; }
 
+  Arena& arena() { return arena_.arena(); }
+
   void SetFlushCompleted(bool completed) { flush_completed_ = completed; }
 
   uint64_t GetFileNumber() const { return file_number_; }

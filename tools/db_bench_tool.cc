@@ -77,6 +77,12 @@
 #include <io.h>  // open/close
 #endif
 
+extern "C" {
+#include <sls.h>
+}
+#include <fcntl.h>
+#include <unistd.h>
+
 using GFLAGS_NAMESPACE::ParseCommandLineFlags;
 using GFLAGS_NAMESPACE::RegisterFlagValidator;
 using GFLAGS_NAMESPACE::SetUsageMessage;
@@ -212,6 +218,8 @@ DEFINE_int64(merge_keys, -1,
              "ReadRandomMergeRandom. "
              "If negative, there will be FLAGS_num keys.");
 DEFINE_int32(num_column_families, 1, "Number of Column Families to use.");
+
+DEFINE_uint64(sls_oid, 1, "SLS OID for the database.");
 
 DEFINE_int32(
     num_hot_column_families, 0,
@@ -3995,6 +4003,7 @@ class Benchmark {
     options.statistics = dbstats;
     options.wal_path = FLAGS_wal_path;
     options.checkpoint_threshold= FLAGS_checkpoint_threshold;
+    options.sls_oid = FLAGS_sls_oid;
     options.create_if_missing = !FLAGS_use_existing_db;
     options.dump_malloc_stats = FLAGS_dump_malloc_stats;
     options.stats_dump_period_sec =
@@ -7066,6 +7075,30 @@ int db_bench_tool(int argc, char** argv) {
   }
 
   ROCKSDB_NAMESPACE::Benchmark benchmark;
+
+  const struct sls_attr attr = (struct sls_attr) {
+      .attr_target = SLS_OSD,
+      .attr_mode = SLS_DELTA,
+      .attr_period = 0,
+      .attr_flags = SLSATTR_IGNUNLINKED,
+      .attr_amplification = 1,
+  };
+
+  uint64_t oid = FLAGS_sls_oid;
+  if (sls_partadd(oid, attr, -1)) {
+    perror("sls_partadd()");
+    throw 42;
+  }
+
+  if (sls_attach(oid, getpid()) != 0) {
+    perror("sls_attach()");
+    throw 42;
+  }
+
+  if (sls_checkpoint(oid, true) != 0) {
+    perror("sls_checkpoint()");
+    throw 42; }
+
   benchmark.Run();
 
 #ifndef ROCKSDB_LITE

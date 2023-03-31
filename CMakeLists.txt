@@ -753,6 +753,12 @@ set(SOURCES
         utilities/write_batch_with_index/write_batch_with_index_internal.cc
         $<TARGET_OBJECTS:build_version>)
 
+# <SLS>
+include_directories(${SLS_PATH}/include)
+link_directories(${SLS_PATH}/libsls)
+list(APPEND THIRDPARTY_LIBS sls_p)
+# </SLS>
+
 if(HAVE_SSE42 AND NOT MSVC)
   set_source_files_properties(
     util/crc32c.cc
@@ -1060,3 +1066,4 @@ if(WITH_TOOLS)
   add_custom_target(tools
     DEPENDS ${tool_deps})
 endif()
+

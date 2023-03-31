@@ -84,6 +84,8 @@ class ConcurrentArena : public Allocator {
 
   size_t BlockSize() const override { return arena_.BlockSize(); }
 
+  Arena& arena() { return arena_; }
+
  private:
   struct Shard {
     char padding[40] ROCKSDB_FIELD_UNUSED;
