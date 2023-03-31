@@ -96,7 +96,8 @@ ImmutableDBOptions::ImmutableDBOptions(const DBOptions& options)
       write_dbid_to_manifest(options.write_dbid_to_manifest),
       log_readahead_size(options.log_readahead_size),
       file_checksum_gen_factory(options.file_checksum_gen_factory),
-      best_efforts_recovery(options.best_efforts_recovery) {
+      best_efforts_recovery(options.best_efforts_recovery),
+      checkpoint_threshold(options.checkpoint_threshold) {
 }
 
 void ImmutableDBOptions::Dump(Logger* log) const {
@@ -151,6 +152,8 @@ void ImmutableDBOptions::Dump(Logger* log) const {
                    db_log_dir.c_str());
   ROCKS_LOG_HEADER(log, "                                Options.wal_path: %s",
                    wal_path.c_str());
+  ROCKS_LOG_HEADER(log, "                                Options.checkpoint_threshold: %ld",
+                   checkpoint_threshold);
   ROCKS_LOG_HEADER(log, "               Options.table_cache_numshardbits: %d",
                    table_cache_numshardbits);
   ROCKS_LOG_HEADER(log,

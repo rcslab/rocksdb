@@ -630,7 +630,9 @@ DEFINE_bool(disable_wal, false, "If true, do not write WAL for write.");
 
 DEFINE_string(wal_path, "", "If not empty, use the given path for WAL");
 
-DEFINE_string(wal_dir, "", "[DEPRECATED, ONLY PRESENT FOR COMPATIBILITY");
+DEFINE_uint64(checkpoint_threshold, 1024 * 1024 * 1024, "Bytes logged per checkpoint");
+
+DEFINE_string(wal_dir, "", "DEPRECATED, ONLY PRESENT FOR COMPATIBILITY");
 
 DEFINE_string(truth_db, "/dev/shm/truth_db/dbbench",
               "Truth key/values used when using verify");
@@ -3992,6 +3994,7 @@ class Benchmark {
     options.create_missing_column_families = FLAGS_num_column_families > 1;
     options.statistics = dbstats;
     options.wal_path = FLAGS_wal_path;
+    options.checkpoint_threshold= FLAGS_checkpoint_threshold;
     options.create_if_missing = !FLAGS_use_existing_db;
     options.dump_malloc_stats = FLAGS_dump_malloc_stats;
     options.stats_dump_period_sec =

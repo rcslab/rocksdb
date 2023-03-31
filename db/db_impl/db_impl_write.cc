@@ -886,6 +886,11 @@ Status DBImpl::PreprocessWrite(const WriteOptions& write_options,
     status = SwitchWAL(write_context);
   }
 
+  if (UNLIKELY(status.ok() && total_log_size_ > immutable_db_options_.checkpoint_threshold)) {
+    WaitForPendingWrites();
+    Checkpoint();
+  }
+
   if (UNLIKELY(status.ok() && write_buffer_manager_->ShouldFlush())) {
     // Before a new memtable is added in SwitchMemtable(),
     // write_buffer_manager_->ShouldFlush() will keep returning true. If another

@@ -89,6 +89,7 @@ struct ImmutableDBOptions {
   size_t log_readahead_size;
   std::shared_ptr<FileChecksumGenFactory> file_checksum_gen_factory;
   bool best_efforts_recovery;
+  size_t checkpoint_threshold;
 };
 
 struct MutableDBOptions {
