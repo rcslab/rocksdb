@@ -23,6 +23,9 @@
 #include "test_util/sync_point.h"
 #include "util/rate_limiter.h"
 
+#include <fcntl.h>
+#include <unistd.h>
+
 namespace ROCKSDB_NAMESPACE {
 Options SanitizeOptions(const std::string& dbname, const Options& src) {
   auto db_options = SanitizeOptions(dbname, DBOptions(src));
@@ -870,6 +873,12 @@ Status DBImpl::Open(const DBOptions& db_options, const std::string& dbname,
     impl->MaybeScheduleFlushOrCompaction();
   }
   impl->mutex_.Unlock();
+
+  impl->walfd_ = open(impl->immutable_db_options_.wal_path.c_str(), O_RDWR | O_DIRECT);
+  if (impl->walfd_ < 0) {
+	perror("open(walfd_)");
+        throw 42;
+  }
 
 #ifndef ROCKSDB_LITE
   auto sfm = static_cast<SstFileManagerImpl*>(

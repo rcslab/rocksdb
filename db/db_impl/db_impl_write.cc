@@ -1035,7 +1035,12 @@ IOStatus DBImpl::WriteToWAL(const WriteBatch& merged_batch,
   if (UNLIKELY(needs_locking)) {
     log_write_mutex_.Lock();
   }
-  IOStatus io_s = log_writer->AddRecord(log_entry);
+
+  size_t len = (log_entry.size() + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+  if (pwrite(walfd_, log_entry.data(), len, 0) != static_cast<ssize_t>(len)) {
+          perror("pwrite(ssd_)");
+          throw 42;
+  }
 
   if (UNLIKELY(needs_locking)) {
     log_write_mutex_.Unlock();
@@ -1047,7 +1052,7 @@ IOStatus DBImpl::WriteToWAL(const WriteBatch& merged_batch,
   // TODO(myabandeh): it might be unsafe to access alive_log_files_.back() here
   // since alive_log_files_ might be modified concurrently
   alive_log_files_.back().AddSize(log_entry.size());
-  return io_s;
+  return IOStatus::OK();
 }
 
 IOStatus DBImpl::WriteToWAL(const WriteThread::WriteGroup& write_group,
