@@ -638,7 +638,7 @@ DEFINE_bool(disable_wal, false, "If true, do not write WAL for write.");
 
 DEFINE_string(wal_path, "/dev/stripe/st1", "If not empty, use the given path for WAL");
 
-DEFINE_uint64(checkpoint_threshold, 1024 * 1024 * 1024, "Bytes logged per checkpoint");
+DEFINE_uint64(checkpoint_threshold, 128 * 1024 * 1024, "Bytes logged per checkpoint");
 
 DEFINE_string(wal_dir, "", "DEPRECATED, ONLY PRESENT FOR COMPATIBILITY");
 
@@ -658,6 +658,10 @@ DEFINE_int32(target_file_size_multiplier,
 DEFINE_uint64(max_bytes_for_level_base,
               ROCKSDB_NAMESPACE::Options().max_bytes_for_level_base,
               "Max bytes for level-1");
+
+DEFINE_bool(ignore_wal, false, "Whether to ignore WAL writes");
+DEFINE_bool(full_checkpoint, false,
+		"Whether to use application checkpointing instead of snapshotting");
 
 DEFINE_bool(level_compaction_dynamic_level_bytes, false,
             "Whether level size base is dynamic");
@@ -3999,11 +4003,14 @@ class Benchmark {
   void InitializeOptionsGeneral(Options* opts) {
     Options& options = *opts;
 
+    options.wal_path = FLAGS_wal_path;
+    options.checkpoint_threshold = FLAGS_checkpoint_threshold;
+    options.sls_oid = FLAGS_sls_oid;
+    options.full_checkpoint = FLAGS_full_checkpoint;
+    options.ignore_wal = FLAGS_ignore_wal;
+
     options.create_missing_column_families = FLAGS_num_column_families > 1;
     options.statistics = dbstats;
-    options.wal_path = FLAGS_wal_path;
-    options.checkpoint_threshold= FLAGS_checkpoint_threshold;
-    options.sls_oid = FLAGS_sls_oid;
     options.create_if_missing = !FLAGS_use_existing_db;
     options.dump_malloc_stats = FLAGS_dump_malloc_stats;
     options.stats_dump_period_sec =
@@ -4106,6 +4113,7 @@ class Benchmark {
     }
 
     InitializeOptionsGeneral(opts);
+
   }
 
   void OpenDb(Options options, const std::string& db_name,

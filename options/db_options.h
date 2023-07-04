@@ -34,6 +34,8 @@ struct ImmutableDBOptions {
   std::vector<DbPath> db_paths;
   std::string db_log_dir;
   std::string wal_path;
+  bool full_checkpoint;
+  bool ignore_wal;
   uint32_t max_subcompactions;
   int max_background_flushes;
   size_t max_log_file_size;

@@ -872,13 +872,22 @@ void DBImpl::MemTableInsertStatusCheck(const Status& status) {
 }
 
 void DBImpl::Checkpoint() {
+  uint64_t oid = immutable_db_options().sls_oid;
+
+  if (immutable_db_options().full_checkpoint) {
+    int error = sls_checkpoint(oid, false);
+    if (error != 0)
+	    throw 5;
+
+    return;
+  }
+
   autovector<ColumnFamilyData*> cfds;
   for (auto cfd : *versions_->GetColumnFamilySet()) {
     if (!cfd->IsDropped())
       cfds.push_back(cfd);
   }
 
-  uint64_t oid = immutable_db_options().sls_oid;
   for (const auto cfd : cfds) {
     cfd->Ref();
     void *addr = cfd->mem()->arena().GetBlockAddr();
@@ -913,6 +922,7 @@ Status DBImpl::PreprocessWrite(const WriteOptions& write_options,
   if (UNLIKELY(status.ok() && total_log_size_ > immutable_db_options_.checkpoint_threshold)) {
     WaitForPendingWrites();
     Checkpoint();
+    total_log_size_ = 0;
   }
 
   if (UNLIKELY(status.ok() && write_buffer_manager_->ShouldFlush())) {
@@ -1036,10 +1046,12 @@ IOStatus DBImpl::WriteToWAL(const WriteBatch& merged_batch,
     log_write_mutex_.Lock();
   }
 
-  size_t len = (log_entry.size() + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
-  if (pwrite(walfd_, log_entry.data(), len, 0) != static_cast<ssize_t>(len)) {
-          perror("pwrite(ssd_)");
-          throw 42;
+  if (!immutable_db_options().ignore_wal) {
+	size_t len = (log_entry.size() + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+	if (pwrite(walfd_, log_entry.data(), len, 0) != static_cast<ssize_t>(len)) {
+		perror("pwrite(ssd_)");
+		throw 42;
+	}
   }
 
   if (UNLIKELY(needs_locking)) {

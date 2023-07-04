@@ -515,6 +515,12 @@ struct DBOptions {
   // This specifies the device path for the write ahead log (WAL).
   std::string wal_path = "";
 
+  // This specifies whether to use full checkpointing or memory snapshotting.
+  bool full_checkpoint = false;
+
+  // This specifies whether to ignore writes to the WAL.
+  bool ignore_wal = false;
+
   // This specifies the amount of writes needed to trigger a checkpoint.
   size_t checkpoint_threshold = 0;
 

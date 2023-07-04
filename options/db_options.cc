@@ -37,6 +37,8 @@ ImmutableDBOptions::ImmutableDBOptions(const DBOptions& options)
       db_paths(options.db_paths),
       db_log_dir(options.db_log_dir),
       wal_path(options.wal_path),
+      full_checkpoint(options.full_checkpoint),
+      ignore_wal(options.ignore_wal),
       max_subcompactions(options.max_subcompactions),
       max_background_flushes(options.max_background_flushes),
       max_log_file_size(options.max_log_file_size),
