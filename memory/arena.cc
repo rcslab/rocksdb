@@ -187,6 +187,13 @@ char* Arena::AllocateRegion(size_t bytes) {
     return nullptr;
   }
 
+  void* gap = mmap((void *)(target + bytes), PAGE_SIZE, PROT_NONE,
+                    MAP_GUARD | MAP_FIXED | MAP_EXCL, -1, 0);
+  if (gap == NULL) {
+    perror("mmap gap");
+    return nullptr;
+  }
+
   blocks_.back() = MmapInfo(addr, bytes);
   blocks_memory_ += bytes;
   if (tracker_ != nullptr) {
