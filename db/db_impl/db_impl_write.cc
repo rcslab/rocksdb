@@ -1047,11 +1047,7 @@ IOStatus DBImpl::WriteToWAL(const WriteBatch& merged_batch,
   }
 
   if (!immutable_db_options().ignore_wal) {
-	size_t len = (log_entry.size() + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
-	if (pwrite(walfd_, log_entry.data(), len, 0) != static_cast<ssize_t>(len)) {
-		perror("pwrite(ssd_)");
-		throw 42;
-	}
+	  Checkpoint();
   }
 
   if (UNLIKELY(needs_locking)) {
