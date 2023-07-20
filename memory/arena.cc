@@ -8,6 +8,10 @@
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 
 #include <sys/param.h>
+#include <fcntl.h>
+#include <sls_wal.h>
+#include <stdio.h>
+#include <time.h>
 
 #include "memory/arena.h"
 #ifndef OS_WIN
@@ -172,26 +176,33 @@ char* Arena::AllocateRegion(size_t bytes) {
   // - If `mmap` throws, no memory leaks because the vector will be cleaned up
   //   via RAII.
   blocks_.emplace_back(nullptr /* addr */, 0 /* length */);
-
-  if (bytes % PAGE_SIZE != 0)
+if (bytes % PAGE_SIZE != 0)
     bytes = bytes - (bytes % PAGE_SIZE) + PAGE_SIZE;
 
-  uint64_t target = std::atomic_fetch_add(&mapping_target_, bytes + PAGE_SIZE);
+  struct timespec ts;
+  clock_gettime(CLOCK_REALTIME_FAST, &ts);
+  uint64_t nanosecs = (1000 * 1000 * 1000 * ts.tv_sec) + ts.tv_nsec;
 
-  //printf("MAPPING %lx, 0x%lx\n", target, bytes);
-  void* addr = mmap((void *)target, bytes, (PROT_READ | PROT_WRITE),
-                    (MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED | MAP_EXCL), -1, 0);
+  char filename[1024];
+  snprintf(filename, 1024, "/tmp/sas-%ld", nanosecs);
 
-  if (addr == MAP_FAILED) {
-    perror("mmap");
-    return nullptr;
+  int error = slsfs_sas_create(filename, 10ULL * 1024 * 1024 * 1024);
+  if (error != 0) {
+	  printf("SAS creation failed\n");
+	  throw 42;
   }
 
-  void* gap = mmap((void *)(target + bytes), PAGE_SIZE, PROT_NONE,
-                    MAP_GUARD | MAP_FIXED | MAP_EXCL, -1, 0);
-  if (gap == NULL) {
-    perror("mmap gap");
-    return nullptr;
+  int fd = open(filename, O_RDWR, 0666);
+  if (fd < 0) {
+	  perror("open");
+	  throw 42;
+  }
+
+  void *addr;
+  error = slsfs_sas_map(fd, &addr);
+  if (error != 0) {
+	  printf("slsfs_sas_map failed %d\n", error);
+	  throw 42;
   }
 
   blocks_.back() = MmapInfo(addr, bytes);

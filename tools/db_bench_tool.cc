@@ -636,7 +636,7 @@ DEFINE_bool(use_fsync, false, "If true, issue fsync instead of fdatasync");
 
 DEFINE_bool(disable_wal, false, "If true, do not write WAL for write.");
 
-DEFINE_string(wal_path, "/dev/stripe/st1", "If not empty, use the given path for WAL");
+DEFINE_string(wal_path, "/tmp/log", "If not empty, use the given path for WAL");
 
 DEFINE_uint64(checkpoint_threshold, 128 * 1024 * 1024, "Bytes logged per checkpoint");
 

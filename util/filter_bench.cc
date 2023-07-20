@@ -378,7 +378,8 @@ void FilterBench::Go() {
       info.filter_ = info.plain_table_bloom_->GetRawData();
     } else {
       if (!builder) {
-        builder.reset(&dynamic_cast<BuiltinFilterBitsBuilder &>(*GetBuilder()));
+	      throw 42;
+        //builder.reset(&dynamic_cast<BuiltinFilterBitsBuilder &>(*GetBuilder()));
       }
       for (uint32_t i = 0; i < keys_to_add; ++i) {
         builder->AddKey(kms_[0].Get(filter_id, i));

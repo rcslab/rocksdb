@@ -874,11 +874,6 @@ Status DBImpl::Open(const DBOptions& db_options, const std::string& dbname,
   }
   impl->mutex_.Unlock();
 
-  impl->walfd_ = open(impl->immutable_db_options_.wal_path.c_str(), O_RDWR | O_DIRECT);
-  if (impl->walfd_ < 0) {
-	perror("open(walfd_)");
-        throw 42;
-  }
 
 #ifndef ROCKSDB_LITE
   auto sfm = static_cast<SstFileManagerImpl*>(

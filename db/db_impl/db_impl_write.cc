@@ -14,6 +14,7 @@
 #include "monitoring/perf_context_imp.h"
 #include "options/options_helper.h"
 #include "test_util/sync_point.h"
+#include <sls_wal.h>
  
 extern "C" {
 #include <sls.h>
@@ -891,10 +892,11 @@ void DBImpl::Checkpoint() {
   for (const auto cfd : cfds) {
     cfd->Ref();
     void *addr = cfd->mem()->arena().GetBlockAddr();
-    int error = sls_memsnap(oid, addr);
+    int error = sas_trace_commit(tracking_fd_);
     if (error != 0)
 	    throw 5;
     cfd->UnrefAndTryDelete();
+    break;
   }
 }
 
@@ -920,8 +922,6 @@ Status DBImpl::PreprocessWrite(const WriteOptions& write_options,
   }
 
   if (UNLIKELY(status.ok() && total_log_size_ > immutable_db_options_.checkpoint_threshold)) {
-    WaitForPendingWrites();
-    Checkpoint();
     total_log_size_ = 0;
   }
 

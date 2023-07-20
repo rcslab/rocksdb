@@ -56,13 +56,14 @@ Status DeleteScheduler::DeleteFile(const std::string& file_path,
                                    const std::string& dir_to_sync,
                                    const bool force_bg) {
   Status s;
+  return Status::OK();
   if (rate_bytes_per_sec_.load() <= 0 || (!force_bg &&
       total_trash_size_.load() >
           sst_file_manager_->GetTotalSize() * max_trash_db_ratio_.load())) {
     // Rate limiting is disabled or trash size makes up more than
     // max_trash_db_ratio_ (default 25%) of the total DB size
     TEST_SYNC_POINT("DeleteScheduler::DeleteFile");
-    s = fs_->DeleteFile(file_path, IOOptions(), nullptr);
+    //s = fs_->DeleteFile(file_path, IOOptions(), nullptr);
     if (s.ok()) {
       sst_file_manager_->OnDeleteFile(file_path);
     }
@@ -76,7 +77,7 @@ Status DeleteScheduler::DeleteFile(const std::string& file_path,
   if (!s.ok()) {
     ROCKS_LOG_ERROR(info_log_, "Failed to mark %s as trash -- %s",
                     file_path.c_str(), s.ToString().c_str());
-    s = fs_->DeleteFile(file_path, IOOptions(), nullptr);
+    //s = fs_->DeleteFile(file_path, IOOptions(), nullptr);
     if (s.ok()) {
       sst_file_manager_->OnDeleteFile(file_path);
     }
@@ -115,6 +116,7 @@ bool DeleteScheduler::IsTrashFile(const std::string& file_path) {
 Status DeleteScheduler::CleanupDirectory(Env* env, SstFileManagerImpl* sfm,
                                          const std::string& path) {
   Status s;
+
   // Check if there are any files marked as trash in this path
   std::vector<std::string> files_in_path;
   s = env->GetChildren(path, &files_in_path);
