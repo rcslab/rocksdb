@@ -947,18 +947,6 @@ Status DBImpl::PreprocessWrite(const WriteOptions& write_options,
   PERF_TIMER_STOP(write_scheduling_flushes_compactions_time);
   PERF_TIMER_GUARD(write_pre_and_post_process_time);
 
-  if (UNLIKELY(status.ok() && (write_controller_.IsStopped() ||
-                               write_controller_.NeedsDelay()))) {
-    PERF_TIMER_STOP(write_pre_and_post_process_time);
-    PERF_TIMER_GUARD(write_delay_time);
-    // We don't know size of curent batch so that we always use the size
-    // for previous one. It might create a fairness issue that expiration
-    // might happen for smaller writes but larger writes can go through.
-    // Can optimize it if it is an issue.
-    status = DelayWrite(last_batch_group_size_, write_options);
-    PERF_TIMER_START(write_pre_and_post_process_time);
-  }
-
   if (status.ok() && *need_log_sync) {
     // Wait until the parallel syncs are finished. Any sync process has to sync
     // the front log too so it is enough to check the status of front()
