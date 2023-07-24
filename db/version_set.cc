@@ -771,6 +771,7 @@ void DoGenerateLevelFilesBrief(LevelFilesBrief* file_level,
   assert(file_level);
   assert(arena);
 
+  return;
   size_t num = files.size();
   file_level->num_files = num;
   char* mem = arena->AllocateAligned(num * sizeof(FdWithKeyRange));
@@ -1612,6 +1613,7 @@ Status Version::OverlapWithLevelIterator(const ReadOptions& read_options,
   ReadRangeDelAggregator range_del_agg(&icmp,
                                        kMaxSequenceNumber /* upper_bound */);
 
+  printf("%s: %d\n", __FILE__, __LINE__);
   *overlap = false;
 
   if (level == 0) {

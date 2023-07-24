@@ -50,7 +50,7 @@ class WriteController {
 
   // these three metods are querying the state of the WriteController
   bool IsStopped() const;
-  bool NeedsDelay() const { return total_delayed_.load() > 0; }
+  bool NeedsDelay() const { return false ; return total_delayed_.load() > 0; }
   bool NeedSpeedupCompaction() const {
     return IsStopped() || NeedsDelay() || total_compaction_pressure_ > 0;
   }

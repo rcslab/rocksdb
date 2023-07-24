@@ -192,6 +192,7 @@ void FlushJob::PickMemTable() {
 
 Status FlushJob::Run(LogsWithPrepTracker* prep_tracker,
                      FileMetaData* file_meta) {
+    return Status::OK();
   TEST_SYNC_POINT("FlushJob::Start");
   db_mutex_->AssertHeld();
   assert(pick_memtable_called);
@@ -314,6 +315,8 @@ Status FlushJob::WriteLevel0Table() {
         range_del_iters;
     ReadOptions ro;
     ro.total_order_seek = true;
+
+    printf("%s: %d\n", __FILE__, __LINE__);
     Arena arena;
     uint64_t total_num_entries = 0, total_num_deletes = 0;
     uint64_t total_data_size = 0;
