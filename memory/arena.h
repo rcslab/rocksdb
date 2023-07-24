@@ -68,6 +68,8 @@ class Arena : public Allocator {
            alloc_bytes_remaining_;
   }
 
+  void MapSAS();
+  void *GetFromSAS(size_t bytes);
   size_t MemoryAllocatedBytes() const { return blocks_memory_; }
 
   size_t AllocatedAndUnused() const { return alloc_bytes_remaining_; }

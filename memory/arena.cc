@@ -166,6 +166,53 @@ char* Arena::AllocateFromHugePage(size_t bytes) {
 #endif
 }
 
+static const size_t mapSize = 2UL * 1024 * 1024 * 1024;
+static char *mapAddr = nullptr;
+static size_t mapIndex = mapSize;
+static std::mutex mapLock;
+
+void Arena::MapSAS()
+{
+  struct timespec ts;
+  clock_gettime(CLOCK_REALTIME_FAST, &ts);
+
+  char filename[1024];
+  snprintf(filename, 1024, "/sas-%ld", ts.tv_nsec);
+
+  int error = slsfs_sas_create(filename, mapSize);
+  if (error != 0) {
+	  printf("SAS creation failed\n");
+	  throw 42;
+  }
+
+  int fd = open(filename, O_RDWR, 0666);
+  if (fd < 0) {
+	  perror("open");
+	  throw 42;
+  }
+
+  error = slsfs_sas_map(fd, (void **)&mapAddr);
+  if (error != 0) {
+	  printf("slsfs_sas_map failed %d\n", error);
+	  throw 42;
+  }
+
+  mapIndex = 0;
+
+}
+
+void *Arena::GetFromSAS(size_t bytes){
+  std::lock_guard<std::mutex> guard(mapLock);
+  
+  if (mapIndex + bytes > mapSize)
+  	MapSAS();
+  
+  void *addr = &mapAddr[mapIndex];
+  mapIndex += bytes;
+
+  return addr;
+}
+
 char* Arena::AllocateRegion(size_t bytes) {
   // Reserve space in `blocks_` before calling `mmap`.
   // Use `emplace_back()` instead of `reserve()` to let std::vector manage its
@@ -179,37 +226,17 @@ char* Arena::AllocateRegion(size_t bytes) {
 if (bytes % PAGE_SIZE != 0)
     bytes = bytes - (bytes % PAGE_SIZE) + PAGE_SIZE;
 
-  struct timespec ts;
-  clock_gettime(CLOCK_REALTIME_FAST, &ts);
-  uint64_t nanosecs = (1000 * 1000 * 1000 * ts.tv_sec) + ts.tv_nsec;
+  void *addr = GetFromSAS(bytes);
 
-  char filename[1024];
-  snprintf(filename, 1024, "/tmp/sas-%ld", nanosecs);
-
-  int error = slsfs_sas_create(filename, 10ULL * 1024 * 1024 * 1024);
-  if (error != 0) {
-	  printf("SAS creation failed\n");
-	  throw 42;
-  }
-
-  int fd = open(filename, O_RDWR, 0666);
-  if (fd < 0) {
-	  perror("open");
-	  throw 42;
-  }
-
-  void *addr;
-  error = slsfs_sas_map(fd, &addr);
-  if (error != 0) {
-	  printf("slsfs_sas_map failed %d\n", error);
-	  throw 42;
-  }
+  mapIndex += bytes;
 
   blocks_.back() = MmapInfo(addr, bytes);
   blocks_memory_ += bytes;
   if (tracker_ != nullptr) {
     tracker_->Allocate(bytes);
   }
+  alloc_bytes_remaining_ += bytes;
+
   return reinterpret_cast<char*>(addr);
 }
 
@@ -218,28 +245,8 @@ char* Arena::AllocateAligned(size_t bytes, size_t huge_page_size,
   assert((kAlignUnit & (kAlignUnit - 1)) ==
          0);  // Pointer size should be a power of 2
 
-#ifdef MAP_HUGETLB
-  if (huge_page_size > 0 && bytes > 0) {
-    // Allocate from a huge page TBL table.
-    assert(logger != nullptr);  // logger need to be passed in.
-    size_t reserved_size =
-        ((bytes - 1U) / huge_page_size + 1U) * huge_page_size;
-    assert(reserved_size >= bytes);
-
-    char* addr = AllocateFromHugePage(reserved_size);
-    if (addr == nullptr) {
-      ROCKS_LOG_WARN(logger,
-                     "AllocateAligned fail to allocate huge TLB pages: %s",
-                     strerror(errno));
-      // fail back to malloc
-    } else {
-      return addr;
-    }
-  }
-#else
   (void)huge_page_size;
   (void)logger;
-#endif
 
   size_t current_mod =
       reinterpret_cast<uintptr_t>(aligned_alloc_ptr_) & (kAlignUnit - 1);
