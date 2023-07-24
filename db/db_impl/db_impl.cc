@@ -102,6 +102,9 @@
 #include "util/stop_watch.h"
 #include "util/string_util.h"
 
+#include <sls.h>
+#include <sls_wal.h>
+
 namespace ROCKSDB_NAMESPACE {
 
 const std::string kDefaultColumnFamilyName("default");
@@ -258,10 +261,9 @@ DBImpl::DBImpl(const DBOptions& options, const std::string& dbname,
 
   struct timespec ts;
   clock_gettime(CLOCK_REALTIME_FAST, &ts);
-  uint64_t nanosecs = (1000 * 1000 * 1000 * ts.tv_sec) + ts.tv_nsec;
 
   char filename[1024];
-  snprintf(filename, 1024, "/tmp/sas-%ld", nanosecs);
+  snprintf(filename, 1024, "/sas-gateway-%ld", ts.tv_nsec);
 
   int error = slsfs_sas_create(filename, 100 * 1024 * 1024);
   if (error != 0) {
@@ -1168,12 +1170,8 @@ Status DBImpl::FlushWAL(bool sync) {
  * anyway, just the global SLS one.
  */
 Status DBImpl::SyncWAL() {
-  {
-    InstrumentedMutexLock l(&mutex_);
-    MarkLogsSynced(logfile_number_, false, Status::OK());
-  }
 
-  return Status::OK();
+  return FlushWAL(true);
 }
 
 Status DBImpl::LockWAL() {
