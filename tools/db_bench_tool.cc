@@ -5473,6 +5473,7 @@ class Benchmark {
           FLAGS_keyrange_dist_c, FLAGS_keyrange_dist_d);
     }
 
+    uint64_t checkpoints, concurrent_checkpoints;
     Duration duration(FLAGS_duration, reads_);
     while (!duration.Done(1)) {
       DBWithColumnFamilies* db_with_cfh = SelectDBWithCfh(thread);
@@ -5603,12 +5604,13 @@ class Benchmark {
         }
         thread->stats.FinishedOps(db_with_cfh, db_with_cfh->db, 1, kSeek);
       }
+      concurrent_checkpoints = db_with_cfh->db->concurrent_checkpoints;
+      checkpoints = db_with_cfh->db->checkpoints;
     }
     char msg[256];
     snprintf(msg, sizeof(msg),
-             "( Gets:%" PRIu64 " Puts:%" PRIu64 " Seek:%" PRIu64 " of %" PRIu64
-             " in %" PRIu64 " found)\n",
-             gets, puts, seek, found, read);
+             "( Gets:%" PRIu64 " Puts:%" PRIu64 "Checkpoint:%" PRIu64 "Concurrent Checkpoint:%" PRIu64 "Seek:%" PRIu64 " of %" PRIu64 " in %" PRIu64 " found)\n",
+             gets, puts, checkpoints, concurrent_checkpoints, seek, found, read);
 
     thread->stats.AddBytes(bytes);
     thread->stats.AddMessage(msg);

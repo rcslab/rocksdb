@@ -268,6 +268,8 @@ class DB {
                                     const std::string& column_family_name,
                                     ColumnFamilyHandle** handle);
 
+  uint64_t concurrent_checkpoints = 0;
+  uint64_t checkpoints = 0;
   // Bulk create column families with the same column family options.
   // Return the handles of the column families through the argument handles.
   // In case of error, the request may succeed partially, and handles will
