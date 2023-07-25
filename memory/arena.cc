@@ -31,7 +31,6 @@ namespace ROCKSDB_NAMESPACE {
 const size_t Arena::kInlineSize;
 #endif
 
-std::atomic<uint64_t> Arena::mapping_target_(0x700000000000);
 const size_t Arena::kMinBlockSize = 4096;
 const size_t Arena::kMaxBlockSize = 2u << 30;
 static const int kAlignUnit = alignof(max_align_t);
