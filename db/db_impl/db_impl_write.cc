@@ -166,8 +166,6 @@ Status DBImpl::WriteImpl(const WriteOptions& write_options,
     }
     // write is complete and leader has updated sequence
     
-    checkpoints += 1;
-    Checkpoint();
     return w.FinalStatus();
   }
   // else we are the leader of the write batch group
