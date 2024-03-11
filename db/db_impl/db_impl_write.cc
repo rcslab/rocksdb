@@ -615,9 +615,20 @@ void DBImpl::Checkpoint() {
     return;
   }
 
-    int error = sas_trace_commit(tracking_fd_);
-    if (error != 0)
-	    throw 5;
+  autovector<ColumnFamilyData> cfds;
+  for (auto cfd: *versions_->GetColumnFamilySet()) {
+  	if (!cfd->IsDropped())
+		cfds.push_back(cfds);
+  }
+
+  for (const auto cfd: cfds) {
+	cfds->Ref();
+	void *addr = cfds->mem()->arena().GetBlockAddr();
+	int error = sls_memsnap(oid, addr);
+	if (error != 0)
+		throw 5;
+	cfd->UnrefAndTryDelete();
+  }
 
 }
 
