@@ -373,6 +373,9 @@ Status DBImpl::WriteImpl(const WriteOptions& write_options,
     mutex_.Unlock();
   }
 
+  Checkpoint();
+  checkpoints += 1;
+
   bool should_exit_batch_group = true;
   if (in_parallel_group) {
     // CompleteParallelWorker returns true if this thread should
@@ -392,9 +395,6 @@ Status DBImpl::WriteImpl(const WriteOptions& write_options,
   if (status.ok()) {
     status = w.FinalStatus();
   }
-
-  Checkpoint();
-  checkpoints += 1;
 
   return status;
 }
