@@ -7,7 +7,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 #include "db/db_impl/db_impl.h"
-#include <sls_wal.h>
 
 #include <stdint.h>
 #ifdef OS_SOLARIS
@@ -102,8 +101,7 @@
 #include "util/stop_watch.h"
 #include "util/string_util.h"
 
-#include <sls.h>
-#include <sls_wal.h>
+#include "../../../aurora-original/include/sls.h"
 
 namespace ROCKSDB_NAMESPACE {
 
@@ -262,22 +260,6 @@ DBImpl::DBImpl(const DBOptions& options, const std::string& dbname,
   struct timespec ts;
   clock_gettime(CLOCK_REALTIME_FAST, &ts);
 
-  char filename[1024];
-  snprintf(filename, 1024, "/sas-gateway-%ld", ts.tv_nsec);
-
-  int error = slsfs_sas_create(filename, 100 * 1024 * 1024);
-  if (error != 0) {
-	  printf("SAS creation failed\n");
-	  throw 42;
-  }
-
-  tracking_fd_ = open(filename, O_RDWR, 0666);
-  if (tracking_fd_ < 0) {
-	  perror("open");
-	  throw 42;
-  }
-
-  sas_trace_start(tracking_fd_);
 }
 
 Status DBImpl::Resume() {
@@ -629,9 +611,6 @@ Status DBImpl::CloseHelper() {
 Status DBImpl::CloseImpl() { return CloseHelper(); }
 
 DBImpl::~DBImpl() {
-  sas_trace_end(tracking_fd_);
-  close(tracking_fd_);
-
   if (!closed_) {
     closed_ = true;
     CloseHelper();

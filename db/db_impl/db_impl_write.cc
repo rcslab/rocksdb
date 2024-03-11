@@ -14,10 +14,9 @@
 #include "monitoring/perf_context_imp.h"
 #include "options/options_helper.h"
 #include "test_util/sync_point.h"
-#include <sls_wal.h>
  
 extern "C" {
-#include <sls.h>
+#include "../../../../aurora-original/include/sls.h"
 }
 #include <fcntl.h>
 #include <unistd.h>
@@ -615,9 +614,20 @@ void DBImpl::Checkpoint() {
     return;
   }
 
-    int error = sas_trace_commit(tracking_fd_);
-    if (error != 0)
-	    throw 5;
+  autovector<ColumnFamilyData*> cfds;
+  for (auto cfd : *versions_->GetColumnFamilySet()) {
+    if (!cfd->IsDropped())
+      cfds.push_back(cfd);
+  }
+
+  for (const auto cfd : cfds) {
+	cfd->Ref();
+	void *addr = cfd->mem()->arena().GetBlockAddr();
+	int error = sls_memsnap(oid, addr);
+	if (error != 0)
+		throw 5;
+	cfd->UnrefAndTryDelete();
+  }
 
 }
 

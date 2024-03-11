@@ -8,10 +8,6 @@
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 
 #include <sys/param.h>
-#include <fcntl.h>
-#include <sls_wal.h>
-#include <stdio.h>
-#include <time.h>
 
 #include "memory/arena.h"
 #ifndef OS_WIN
@@ -31,6 +27,7 @@ namespace ROCKSDB_NAMESPACE {
 const size_t Arena::kInlineSize;
 #endif
 
+std::atomic<uint64_t> Arena::mapping_target_(0x700000000000);
 const size_t Arena::kMinBlockSize = 4096;
 const size_t Arena::kMaxBlockSize = 2u << 30;
 static const int kAlignUnit = alignof(max_align_t);
@@ -165,53 +162,6 @@ char* Arena::AllocateFromHugePage(size_t bytes) {
 #endif
 }
 
-static const size_t mapSize = 2UL * 1024 * 1024 * 1024;
-static char *mapAddr = nullptr;
-static size_t mapIndex = mapSize;
-static std::mutex mapLock;
-
-void Arena::MapSAS()
-{
-  struct timespec ts;
-  clock_gettime(CLOCK_REALTIME_FAST, &ts);
-
-  char filename[1024];
-  snprintf(filename, 1024, "/sas-%ld", ts.tv_nsec);
-
-  int error = slsfs_sas_create(filename, mapSize);
-  if (error != 0) {
-	  printf("SAS creation failed\n");
-	  throw 42;
-  }
-
-  int fd = open(filename, O_RDWR, 0666);
-  if (fd < 0) {
-	  perror("open");
-	  throw 42;
-  }
-
-  error = slsfs_sas_map(fd, (void **)&mapAddr);
-  if (error != 0) {
-	  printf("slsfs_sas_map failed %d\n", error);
-	  throw 42;
-  }
-
-  mapIndex = 0;
-
-}
-
-void *Arena::GetFromSAS(size_t bytes){
-  std::lock_guard<std::mutex> guard(mapLock);
-  
-  if (mapIndex + bytes > mapSize)
-  	MapSAS();
-  
-  void *addr = &mapAddr[mapIndex];
-  mapIndex += bytes;
-
-  return addr;
-}
-
 char* Arena::AllocateRegion(size_t bytes) {
   // Reserve space in `blocks_` before calling `mmap`.
   // Use `emplace_back()` instead of `reserve()` to let std::vector manage its
@@ -222,20 +172,33 @@ char* Arena::AllocateRegion(size_t bytes) {
   // - If `mmap` throws, no memory leaks because the vector will be cleaned up
   //   via RAII.
   blocks_.emplace_back(nullptr /* addr */, 0 /* length */);
-if (bytes % PAGE_SIZE != 0)
+
+  if (bytes % PAGE_SIZE != 0)
     bytes = bytes - (bytes % PAGE_SIZE) + PAGE_SIZE;
 
-  void *addr = GetFromSAS(bytes);
+  uint64_t target = std::atomic_fetch_add(&mapping_target_, bytes + PAGE_SIZE);
 
-  mapIndex += bytes;
+  //printf("MAPPING %lx, 0x%lx\n", target, bytes);
+  void* addr = mmap((void *)target, bytes, (PROT_READ | PROT_WRITE),
+                    (MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED | MAP_EXCL), -1, 0);
+
+  if (addr == MAP_FAILED) {
+    perror("mmap");
+    return nullptr;
+  }
+
+  void* gap = mmap((void *)(target + bytes), PAGE_SIZE, PROT_NONE,
+                    MAP_GUARD | MAP_FIXED | MAP_EXCL, -1, 0);
+  if (gap == NULL) {
+    perror("mmap gap");
+    return nullptr;
+  }
 
   blocks_.back() = MmapInfo(addr, bytes);
   blocks_memory_ += bytes;
   if (tracker_ != nullptr) {
     tracker_->Allocate(bytes);
   }
-  alloc_bytes_remaining_ += bytes;
-
   return reinterpret_cast<char*>(addr);
 }
 
@@ -244,8 +207,28 @@ char* Arena::AllocateAligned(size_t bytes, size_t huge_page_size,
   assert((kAlignUnit & (kAlignUnit - 1)) ==
          0);  // Pointer size should be a power of 2
 
+#ifdef MAP_HUGETLB
+  if (huge_page_size > 0 && bytes > 0) {
+    // Allocate from a huge page TBL table.
+    assert(logger != nullptr);  // logger need to be passed in.
+    size_t reserved_size =
+        ((bytes - 1U) / huge_page_size + 1U) * huge_page_size;
+    assert(reserved_size >= bytes);
+
+    char* addr = AllocateFromHugePage(reserved_size);
+    if (addr == nullptr) {
+      ROCKS_LOG_WARN(logger,
+                     "AllocateAligned fail to allocate huge TLB pages: %s",
+                     strerror(errno));
+      // fail back to malloc
+    } else {
+      return addr;
+    }
+  }
+#else
   (void)huge_page_size;
   (void)logger;
+#endif
 
   size_t current_mod =
       reinterpret_cast<uintptr_t>(aligned_alloc_ptr_) & (kAlignUnit - 1);

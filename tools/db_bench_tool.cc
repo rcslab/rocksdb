@@ -78,7 +78,7 @@
 #endif
 
 extern "C" {
-#include <sls.h>
+#include "../../../aurora-original/include/sls.h"
 }
 #include <fcntl.h>
 #include <unistd.h>
@@ -7091,11 +7091,10 @@ int db_bench_tool(int argc, char** argv) {
       .attr_mode = SLS_DELTA,
       .attr_period = 0,
       .attr_flags = SLSATTR_IGNUNLINKED,
-      .attr_amplification = 1,
   };
 
   uint64_t oid = FLAGS_sls_oid;
-  if (sls_partadd(oid, attr, -1)) {
+  if (sls_partadd(oid, attr)) {
     perror("sls_partadd()");
     throw 42;
   }

@@ -1968,9 +1968,6 @@ class DBImpl : public DB {
 
   std::string db_absolute_path_;
 
-  // Adding the FD 
-  int tracking_fd_;
-
   // Number of running IngestExternalFile() or CreateColumnFamilyWithImport()
   // calls.
   // REQUIRES: mutex held
