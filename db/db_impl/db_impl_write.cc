@@ -615,15 +615,15 @@ void DBImpl::Checkpoint() {
     return;
   }
 
-  autovector<ColumnFamilyData> cfds;
-  for (auto cfd: *versions_->GetColumnFamilySet()) {
-  	if (!cfd->IsDropped())
-		cfds.push_back(cfds);
+  autovector<ColumnFamilyData*> cfds;
+  for (auto cfd : *versions_->GetColumnFamilySet()) {
+    if (!cfd->IsDropped())
+      cfds.push_back(cfd);
   }
 
-  for (const auto cfd: cfds) {
-	cfds->Ref();
-	void *addr = cfds->mem()->arena().GetBlockAddr();
+  for (const auto cfd : cfds) {
+	cfd->Ref();
+	void *addr = cfd->mem()->arena().GetBlockAddr();
 	int error = sls_memsnap(oid, addr);
 	if (error != 0)
 		throw 5;
