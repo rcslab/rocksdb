@@ -14,10 +14,9 @@
 #include "monitoring/perf_context_imp.h"
 #include "options/options_helper.h"
 #include "test_util/sync_point.h"
-#include <sls_wal.h>
  
 extern "C" {
-#include <sls.h>
+#include "../../../../aurora-original/include/sls.h"
 }
 #include <fcntl.h>
 #include <unistd.h>
