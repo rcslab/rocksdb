@@ -16,7 +16,7 @@
 #include "test_util/sync_point.h"
  
 extern "C" {
-#include "../../../../aurora-original/include/sls.h"
+#include "../../../../aurora-memsnap/include/sls.h"
 }
 #include <fcntl.h>
 #include <unistd.h>

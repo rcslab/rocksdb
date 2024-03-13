@@ -101,7 +101,7 @@
 #include "util/stop_watch.h"
 #include "util/string_util.h"
 
-#include "../../../aurora-original/include/sls.h"
+#include "../../../aurora-memsnap/include/sls.h"
 
 namespace ROCKSDB_NAMESPACE {
 
